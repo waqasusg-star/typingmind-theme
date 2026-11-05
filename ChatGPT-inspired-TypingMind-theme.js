@@ -1,6 +1,6 @@
 /*!
  * ChatGPT-inspired chat-area styling for TypingMind
- * Version: 1.4.0 | 2026-11-06
+ * Version: 1.5.0 | 2026-11-06
  *
  * Independent visual theme. Not affiliated with or endorsed by OpenAI or TypingMind.
  * Changes appearance only: does not read chats, API keys, prompts, or account data;
@@ -18,7 +18,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.4.0';
+  const VERSION = '1.5.0';
   const CLASS_NAME = 'tm-chatgpt-ui';
   const STYLE_ID = 'tm-chatgpt-ui-styles';
   const API_NAME = 'TypingMindChatGPTTheme';
@@ -38,6 +38,20 @@
     }
   }
 
+  // Keep reused UI hooks outside the conversation native. Popovers may be
+  // rendered in a portal or inside the composer; neither is a theme surface.
+  const NATIVE_UI = ':where(' + [
+    '[role="dialog"]', '[role="menu"]', '[role="listbox"]',
+    '[data-element-id="pop-up-modal"]',
+    '[data-element-id="model-select-options"]',
+    '[data-element-id="agent-select-options"]'
+  ].join(', ') + ')';
+  const NATIVE_GUARD = `:not(${NATIVE_UI}, ${NATIVE_UI} *)`;
+  const CHAT = `html.${CLASS_NAME} [data-element-id="chat-space-middle-part"]${NATIVE_GUARD}`;
+  const COMPOSER = `html.${CLASS_NAME} [data-element-id="chat-space-end-part"]${NATIVE_GUARD}`;
+  const RESPONSE = `${CHAT} [data-element-id="response-block"]`;
+  let destroyed = false;
+
   // CSS is opt-in and targets only TypingMind conversation and composer elements.
   // Do not alter html/body colors, document font, application layout, sidebar,
   // title bar, navigation, settings, home screen, popovers, or browser zoom.
@@ -46,7 +60,7 @@
 /* ===========================================================
    01 — Chat-only tokens (no global page or window styling)
    =========================================================== */
-html.${CLASS_NAME} {
+html.${CLASS_NAME} :is([data-element-id="chat-space-middle-part"], [data-element-id="chat-space-end-part"])${NATIVE_GUARD} {
   --cg-page: #ffffff;
   --cg-surface: #ffffff;
   --cg-wash: #f5f5f5;
@@ -66,8 +80,8 @@ html.${CLASS_NAME} {
   --cg-font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
              "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
-html.dark.${CLASS_NAME},
-html.${CLASS_NAME}[data-theme="dark"] {
+html.dark.${CLASS_NAME} :is([data-element-id="chat-space-middle-part"], [data-element-id="chat-space-end-part"])${NATIVE_GUARD},
+html.${CLASS_NAME}[data-theme="dark"] :is([data-element-id="chat-space-middle-part"], [data-element-id="chat-space-end-part"])${NATIVE_GUARD} {
   --cg-page: #212121;
   --cg-surface: #303030;
   --cg-wash: #292929;
@@ -89,17 +103,18 @@ html.${CLASS_NAME}[data-theme="dark"] {
 /* ===========================================================
    02 — Chat content canvas ONLY, not application windows/nav
    =========================================================== */
-html.${CLASS_NAME} [data-element-id="chat-space-middle-part"],
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] {
+${CHAT}${NATIVE_GUARD},
+${COMPOSER}${NATIVE_GUARD} {
   background: var(--cg-page) !important;
 }
 
 /* ===========================================================
-   04 — Message lane: centered, spacious and uncluttered
+   03 — Message lane: centered, spacious and uncluttered
    =========================================================== */
-html.${CLASS_NAME} [data-element-id="response-block"] {
+${RESPONSE}${NATIVE_GUARD} {
   box-sizing: border-box;
   /* ChatGPT-style reading lane. No changes to TypingMind app layout. */
+  min-width: 0;
   max-width: 920px !important;
   width: calc(100% - 32px) !important;
   margin-left: auto !important;
@@ -107,19 +122,18 @@ html.${CLASS_NAME} [data-element-id="response-block"] {
   padding-top: 18px !important;
   padding-bottom: 19px !important;
   background: transparent !important;
-  color: var(--cg-text);
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }
-html.${CLASS_NAME} [data-element-id="response-block"]:hover {
+${RESPONSE}:hover${NATIVE_GUARD} {
   background: transparent !important;
 }
-html.${CLASS_NAME} [data-element-id="response-block"][data-message-role="user"] {
+${RESPONSE}[data-message-role="user"]${NATIVE_GUARD} {
   padding-top: 10px !important;
   padding-bottom: 10px !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-avatar-container"] {
+${RESPONSE} [data-element-id="chat-avatar-container"]${NATIVE_GUARD} {
   background: var(--cg-surface) !important;
   border: 1px solid var(--cg-stroke) !important;
   border-radius: 50% !important;
@@ -128,10 +142,10 @@ html.${CLASS_NAME} [data-element-id="chat-avatar-container"] {
   overflow: hidden;
   box-shadow: none !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-avatar-container"] img {
+${RESPONSE} [data-element-id="chat-avatar-container"] img${NATIVE_GUARD} {
   border-radius: 50% !important;
 }
-html.${CLASS_NAME} [data-element-id="response-block"] [data-element-id="user-message"] {
+${RESPONSE} [data-element-id="user-message"]${NATIVE_GUARD} {
   box-sizing: border-box;
   display: block;
   width: fit-content !important;
@@ -147,61 +161,64 @@ html.${CLASS_NAME} [data-element-id="response-block"] [data-element-id="user-mes
   line-height: 1.58 !important;
   overflow-wrap: anywhere;
 }
-html.${CLASS_NAME} [data-element-id="response-block"] [data-element-id="user-message"] * {
+${RESPONSE} [data-element-id="user-message"] *${NATIVE_GUARD} {
   color: inherit !important;
 }
-html.${CLASS_NAME} [data-element-id="assistant-activity-status"] {
+${RESPONSE} [data-element-id="assistant-activity-status"]${NATIVE_GUARD} {
   color: var(--cg-tertiary) !important;
   font-size: 13px;
 }
 
 /* ===========================================================
-   05 — Markdown reading: typography, tables, quotes and links
+   04 — Markdown reading: typography, tables, quotes and links
    =========================================================== */
-html.${CLASS_NAME} [data-element-id="ai-response"] {
+${RESPONSE} [data-element-id="ai-response"]${NATIVE_GUARD} {
+  min-width: 0;
   max-width: 100% !important;
+  /* Wide tables/code stay in the answer, never widen the app or sidebar. */
+  overflow-x: auto;
   background: transparent !important;
   color: var(--cg-text) !important;
   font-family: var(--cg-font);
   font-size: 16px;
   line-height: 1.76;
   letter-spacing: -.008em;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] > :first-child { margin-top: 0 !important; }
-html.${CLASS_NAME} [data-element-id="ai-response"] > :last-child { margin-bottom: 0 !important; }
-html.${CLASS_NAME} [data-element-id="ai-response"] p { margin: .7em 0; }
-html.${CLASS_NAME} [data-element-id="ai-response"] h1,
-html.${CLASS_NAME} [data-element-id="ai-response"] h2,
-html.${CLASS_NAME} [data-element-id="ai-response"] h3,
-html.${CLASS_NAME} [data-element-id="ai-response"] h4 {
+${RESPONSE} [data-element-id="ai-response"] > :first-child${NATIVE_GUARD} { margin-top: 0 !important; }
+${RESPONSE} [data-element-id="ai-response"] > :last-child${NATIVE_GUARD} { margin-bottom: 0 !important; }
+${RESPONSE} [data-element-id="ai-response"] p${NATIVE_GUARD} { margin: .7em 0; }
+${RESPONSE} [data-element-id="ai-response"] h1${NATIVE_GUARD},
+${RESPONSE} [data-element-id="ai-response"] h2${NATIVE_GUARD},
+${RESPONSE} [data-element-id="ai-response"] h3${NATIVE_GUARD},
+${RESPONSE} [data-element-id="ai-response"] h4${NATIVE_GUARD} {
   color: var(--cg-text) !important;
   font-weight: 650 !important;
   letter-spacing: -.025em;
   line-height: 1.35;
   scroll-margin-top: 64px;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] h1 { font-size: 1.7em; margin: 1.2em 0 .55em; }
-html.${CLASS_NAME} [data-element-id="ai-response"] h2 { font-size: 1.35em; margin: 1.2em 0 .5em; }
-html.${CLASS_NAME} [data-element-id="ai-response"] h3 { font-size: 1.14em; margin: 1.1em 0 .45em; }
-html.${CLASS_NAME} [data-element-id="ai-response"] h4 { font-size: 1.02em; margin: 1em 0 .35em; }
-html.${CLASS_NAME} [data-element-id="ai-response"] strong {
+${RESPONSE} [data-element-id="ai-response"] h1${NATIVE_GUARD} { font-size: 1.7em; margin: 1.2em 0 .55em; }
+${RESPONSE} [data-element-id="ai-response"] h2${NATIVE_GUARD} { font-size: 1.35em; margin: 1.2em 0 .5em; }
+${RESPONSE} [data-element-id="ai-response"] h3${NATIVE_GUARD} { font-size: 1.14em; margin: 1.1em 0 .45em; }
+${RESPONSE} [data-element-id="ai-response"] h4${NATIVE_GUARD} { font-size: 1.02em; margin: 1em 0 .35em; }
+${RESPONSE} [data-element-id="ai-response"] strong${NATIVE_GUARD} {
   color: var(--cg-text) !important;
   font-weight: 650;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] a {
+${RESPONSE} [data-element-id="ai-response"] a${NATIVE_GUARD} {
   color: var(--cg-link) !important;
   text-underline-offset: 3px;
   text-decoration-thickness: 1px;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] ul,
-html.${CLASS_NAME} [data-element-id="ai-response"] ol {
+${RESPONSE} [data-element-id="ai-response"] ul${NATIVE_GUARD},
+${RESPONSE} [data-element-id="ai-response"] ol${NATIVE_GUARD} {
   margin: .65em 0 1em;
   padding-left: 1.55em;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] li { margin: .22em 0; padding-left: .16em; }
-html.${CLASS_NAME} [data-element-id="ai-response"] li::marker { color: var(--cg-secondary); }
-html.${CLASS_NAME} [data-element-id="ai-response"] blockquote {
+${RESPONSE} [data-element-id="ai-response"] li${NATIVE_GUARD} { margin: .22em 0; padding-left: .16em; }
+${RESPONSE} [data-element-id="ai-response"] li${NATIVE_GUARD}::marker { color: var(--cg-secondary); }
+${RESPONSE} [data-element-id="ai-response"] blockquote${NATIVE_GUARD} {
   margin: 1em 0;
   color: var(--cg-secondary) !important;
   background: transparent !important;
@@ -210,11 +227,11 @@ html.${CLASS_NAME} [data-element-id="ai-response"] blockquote {
   padding: 2px 0 2px 16px !important;
   font-style: normal;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] hr {
+${RESPONSE} [data-element-id="ai-response"] hr${NATIVE_GUARD} {
   margin: 1.65em 0;
   border-color: var(--cg-stroke) !important;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] :not(pre) > code {
+${RESPONSE} [data-element-id="ai-response"] code:not(pre code)${NATIVE_GUARD} {
   padding: .14em .35em;
   background: var(--cg-wash) !important;
   color: var(--cg-text) !important;
@@ -223,9 +240,9 @@ html.${CLASS_NAME} [data-element-id="ai-response"] :not(pre) > code {
   font-size: .89em;
   font-weight: 450;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] :not(pre) > code::before,
-html.${CLASS_NAME} [data-element-id="ai-response"] :not(pre) > code::after { content: none !important; }
-html.${CLASS_NAME} [data-element-id="ai-response"] pre {
+${RESPONSE} [data-element-id="ai-response"] code:not(pre code)${NATIVE_GUARD}::before,
+${RESPONSE} [data-element-id="ai-response"] code:not(pre code)${NATIVE_GUARD}::after { content: none !important; }
+${RESPONSE} [data-element-id="ai-response"] pre${NATIVE_GUARD} {
   max-width: 100%;
   background: var(--cg-code) !important;
   color: var(--cg-text) !important;
@@ -235,27 +252,27 @@ html.${CLASS_NAME} [data-element-id="ai-response"] pre {
   box-shadow: none !important;
   overflow-x: auto;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] pre code {
+${RESPONSE} [data-element-id="ai-response"] pre code${NATIVE_GUARD} {
   font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   font-size: .875em;
 }
 /* Preserve native syntax-highlighting colors and TypingMind's code-copy controls. */
-html.${CLASS_NAME} [data-element-id="ai-response"] pre > div > div:first-child {
+${RESPONSE} [data-element-id="ai-response"] pre > div > div:first-child${NATIVE_GUARD} {
   background: var(--cg-code-head) !important;
   color: var(--cg-secondary) !important;
   min-height: 36px;
   border-bottom: 1px solid var(--cg-stroke);
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] pre > div > div:first-child button {
+${RESPONSE} [data-element-id="ai-response"] pre > div > div:first-child button${NATIVE_GUARD} {
   background: transparent !important;
   color: var(--cg-secondary) !important;
   border-radius: 8px !important;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] pre > div > div:first-child button:hover {
+${RESPONSE} [data-element-id="ai-response"] pre > div > div:first-child button:hover${NATIVE_GUARD} {
   background: var(--cg-hover) !important;
   color: var(--cg-text) !important;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] pre > div > div > pre {
+${RESPONSE} [data-element-id="ai-response"] pre > div > div > pre${NATIVE_GUARD} {
   margin: 0 !important;
   padding: 15px 17px !important;
   border: 0 !important;
@@ -263,7 +280,7 @@ html.${CLASS_NAME} [data-element-id="ai-response"] pre > div > div > pre {
   background: transparent !important;
   box-shadow: none !important;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] table {
+${RESPONSE} [data-element-id="ai-response"] table${NATIVE_GUARD} {
   border: 1px solid var(--cg-stroke) !important;
   border-collapse: separate !important;
   border-spacing: 0;
@@ -273,73 +290,72 @@ html.${CLASS_NAME} [data-element-id="ai-response"] table {
   overflow: visible;
   font-size: .94em;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] th {
+${RESPONSE} [data-element-id="ai-response"] th${NATIVE_GUARD} {
   background: var(--cg-wash) !important;
   color: var(--cg-text) !important;
   font-weight: 600;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] td,
-html.${CLASS_NAME} [data-element-id="ai-response"] th {
+${RESPONSE} [data-element-id="ai-response"] td${NATIVE_GUARD},
+${RESPONSE} [data-element-id="ai-response"] th${NATIVE_GUARD} {
   padding: 9px 12px !important;
   border-color: var(--cg-stroke) !important;
   vertical-align: top;
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] tr:nth-child(even) td {
+${RESPONSE} [data-element-id="ai-response"] tr:nth-child(even) td${NATIVE_GUARD} {
   background: color-mix(in srgb, var(--cg-wash) 30%, transparent);
 }
-html.${CLASS_NAME} [data-element-id="ai-response"] img {
+${RESPONSE} [data-element-id="ai-response"] img${NATIVE_GUARD} {
   max-width: 100%;
   height: auto;
   border-radius: 12px;
 }
 
 /* ===========================================================
-   06 — Response actions, thinking, sources and results
+   05 — Response actions, thinking, sources and results
    =========================================================== */
-html.${CLASS_NAME} [data-element-id="thinking-block"],
-html.${CLASS_NAME} [data-element-id="websearch-calls-block"],
-html.${CLASS_NAME} [data-element-id="citations-block"] {
+${RESPONSE} [data-element-id="thinking-block"]${NATIVE_GUARD},
+${RESPONSE} [data-element-id="websearch-calls-block"]${NATIVE_GUARD},
+${RESPONSE} [data-element-id="citations-block"]${NATIVE_GUARD} {
   color: var(--cg-secondary) !important;
   border-color: var(--cg-stroke) !important;
 }
-html.${CLASS_NAME} [data-element-id="thinking-block"] {
+${RESPONSE} [data-element-id="thinking-block"]${NATIVE_GUARD} {
   background: var(--cg-wash) !important;
   border: 1px solid var(--cg-stroke) !important;
   border-radius: 12px !important;
 }
-html.${CLASS_NAME} [data-element-id="additional-actions-of-response-container"] {
+${RESPONSE} [data-element-id="additional-actions-of-response-container"]${NATIVE_GUARD} {
   background: transparent !important;
   color: var(--cg-tertiary) !important;
   border: 0 !important;
   box-shadow: none !important;
 }
-html.${CLASS_NAME} [data-element-id="copy-message-button"],
-html.${CLASS_NAME} [data-element-id="edit-message-button"],
-html.${CLASS_NAME} [data-element-id="more-actions-menu-button"],
-html.${CLASS_NAME} [data-element-id="fork-chat-button"] {
+${RESPONSE} [data-element-id="copy-message-button"]${NATIVE_GUARD},
+${RESPONSE} [data-element-id="edit-message-button"]${NATIVE_GUARD},
+${RESPONSE} [data-element-id="more-actions-menu-button"]${NATIVE_GUARD},
+${RESPONSE} [data-element-id="fork-chat-button"]${NATIVE_GUARD} {
   color: var(--cg-secondary) !important;
   background: transparent !important;
   border-radius: 9px !important;
 }
-html.${CLASS_NAME} [data-element-id="copy-message-button"]:hover,
-html.${CLASS_NAME} [data-element-id="edit-message-button"]:hover,
-html.${CLASS_NAME} [data-element-id="more-actions-menu-button"]:hover,
-html.${CLASS_NAME} [data-element-id="fork-chat-button"]:hover {
+${RESPONSE} [data-element-id="copy-message-button"]:hover${NATIVE_GUARD},
+${RESPONSE} [data-element-id="edit-message-button"]:hover${NATIVE_GUARD},
+${RESPONSE} [data-element-id="more-actions-menu-button"]:hover${NATIVE_GUARD},
+${RESPONSE} [data-element-id="fork-chat-button"]:hover${NATIVE_GUARD} {
   color: var(--cg-text) !important;
   background: var(--cg-hover) !important;
 }
 
 /* ===========================================================
-   07 — Composer: floating rounded input, native controls intact
+   06 — Composer: floating rounded input, native controls intact
    =========================================================== */
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] {
-  padding-left: 12px;
-  padding-right: 12px;
+${COMPOSER}${NATIVE_GUARD} {
+  padding-inline: 0;
   padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] > div:has([data-element-id="message-input"]) {
+${COMPOSER} > div:has([data-element-id="message-input"])${NATIVE_GUARD} {
   box-sizing: border-box;
-  /* Keep the composer aligned with the newly expanded conversation lane. */
+  /* Match the reading lane without changing the app-owned flex layout. */
   width: calc(100% - 32px) !important;
   max-width: 920px !important;
   margin-left: auto !important;
@@ -348,7 +364,6 @@ html.${CLASS_NAME} [data-element-id="chat-space-end-part"] > div:has([data-eleme
   margin-bottom: 10px !important;
   padding: 3px 7px 7px !important;
   background: var(--cg-surface) !important;
-  color: var(--cg-text);
   border: 1px solid var(--cg-stroke) !important;
   border-radius: 27px !important;
   box-shadow: var(--cg-shadow) !important;
@@ -356,26 +371,28 @@ html.${CLASS_NAME} [data-element-id="chat-space-end-part"] > div:has([data-eleme
   overflow: visible;
   transition: border-color .12s ease, box-shadow .12s ease;
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] > div:has([data-element-id="message-input"]):focus-within {
+${COMPOSER} > div:has([data-element-id="message-input"]):focus-within${NATIVE_GUARD} {
   border-color: var(--cg-stroke-strong) !important;
   box-shadow: var(--cg-shadow) !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="message-input"],
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="input-row"],
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox-container"] {
+${COMPOSER} [data-element-id="message-input"]${NATIVE_GUARD},
+${COMPOSER} [data-element-id="input-row"]${NATIVE_GUARD},
+${COMPOSER} [data-element-id="chat-input-textbox-container"]${NATIVE_GUARD} {
   background: transparent !important;
-  color: var(--cg-text);
   border: 0 !important;
   border-radius: 0 !important;
   outline: 0 !important;
   box-shadow: none !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox-container"],
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox-container"].editing {
+${COMPOSER} [data-element-id="chat-input-textbox-container"]${NATIVE_GUARD},
+${COMPOSER} [data-element-id="chat-input-textbox-container"].editing${NATIVE_GUARD} {
   padding: 0 !important;
   overflow: visible;
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox"] {
+${COMPOSER} [data-element-id="chat-input-textbox"]${NATIVE_GUARD} {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
   min-height: 48px !important;
   max-height: 260px !important;
   padding: 13px 13px 6px !important;
@@ -390,37 +407,37 @@ html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="cha
   line-height: 1.55 !important;
   caret-color: var(--cg-text);
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox"]:focus,
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox"]:focus-visible {
+${COMPOSER} [data-element-id="chat-input-textbox"]:focus${NATIVE_GUARD},
+${COMPOSER} [data-element-id="chat-input-textbox"]:focus-visible${NATIVE_GUARD} {
   outline: 0 !important;
   box-shadow: none !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox"]::placeholder {
+${COMPOSER} [data-element-id="chat-input-textbox"]${NATIVE_GUARD}::placeholder {
   color: var(--cg-tertiary) !important;
   opacity: 1;
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] {
+${COMPOSER} [data-element-id="chat-input-actions"]${NATIVE_GUARD} {
   background: transparent !important;
   min-height: 39px;
   padding: 3px 5px 0 !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] .scroll-indicator-gradient::after {
+${COMPOSER} [data-element-id="chat-input-actions"] .scroll-indicator-gradient${NATIVE_GUARD}::after {
   background: linear-gradient(90deg, transparent, var(--cg-surface)) !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] button,
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="model-setting-button"],
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="output-settings-button"] {
+${COMPOSER} [data-element-id="chat-input-actions"] button${NATIVE_GUARD},
+${COMPOSER} [data-element-id="model-setting-button"]${NATIVE_GUARD},
+${COMPOSER} [data-element-id="output-settings-button"]${NATIVE_GUARD} {
   color: var(--cg-secondary) !important;
   border-radius: 999px !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] button:hover,
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="model-setting-button"]:hover,
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="output-settings-button"]:hover {
+${COMPOSER} [data-element-id="chat-input-actions"] button:hover${NATIVE_GUARD},
+${COMPOSER} [data-element-id="model-setting-button"]:hover${NATIVE_GUARD},
+${COMPOSER} [data-element-id="output-settings-button"]:hover${NATIVE_GUARD} {
   color: var(--cg-text) !important;
   background: var(--cg-hover) !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="send-button"],
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="more-options-button"] {
+${COMPOSER} [data-element-id="chat-input-actions"] [data-element-id="send-button"]${NATIVE_GUARD},
+${COMPOSER} [data-element-id="chat-input-actions"] [data-element-id="more-options-button"]${NATIVE_GUARD} {
   box-sizing: border-box;
   min-width: 36px !important;
   height: 36px !important;
@@ -436,24 +453,24 @@ html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="cha
   white-space: nowrap;
   opacity: 1;
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="more-options-button"] {
+${COMPOSER} [data-element-id="chat-input-actions"] [data-element-id="more-options-button"]${NATIVE_GUARD} {
   min-width: 34px !important;
   width: 34px !important;
   padding: 0 !important;
   margin-left: 2px;
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="send-button"] *,
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="more-options-button"] * {
+${COMPOSER} [data-element-id="chat-input-actions"] [data-element-id="send-button"] *${NATIVE_GUARD},
+${COMPOSER} [data-element-id="chat-input-actions"] [data-element-id="more-options-button"] *${NATIVE_GUARD} {
   color: inherit !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="send-button"]:hover,
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="more-options-button"]:hover {
+${COMPOSER} [data-element-id="chat-input-actions"] [data-element-id="send-button"]:hover${NATIVE_GUARD},
+${COMPOSER} [data-element-id="chat-input-actions"] [data-element-id="more-options-button"]:hover${NATIVE_GUARD} {
   background: var(--cg-send) !important;
   color: var(--cg-send-text) !important;
   opacity: .83;
 }
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="send-button"]:disabled,
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="more-options-button"]:disabled {
+${COMPOSER} [data-element-id="chat-input-actions"] [data-element-id="send-button"]:disabled${NATIVE_GUARD},
+${COMPOSER} [data-element-id="chat-input-actions"] [data-element-id="more-options-button"]:disabled${NATIVE_GUARD} {
   background: var(--cg-hover) !important;
   color: var(--cg-tertiary) !important;
   opacity: .75;
@@ -461,56 +478,53 @@ html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="cha
 /* TypingMind's new-chat, regenerate, dropdowns and popovers remain native. */
 
 /* Visible keyboard focus only inside the composer and chat actions. */
-html.${CLASS_NAME} [data-element-id="chat-space-end-part"] button:focus-visible,
-html.${CLASS_NAME} [data-element-id="response-block"] button:focus-visible {
+${COMPOSER} button:focus-visible${NATIVE_GUARD},
+${RESPONSE} button:focus-visible${NATIVE_GUARD} {
   outline: 2px solid var(--cg-link) !important;
   outline-offset: 2px;
 }
 
 /* ===========================================================
-   09 — Native 100% layout (no theme-based zoom)
+   07 — Native 100% layout (no theme-based zoom)
    =========================================================== */
 /* Deliberately do not override CSS zoom, transform scale, html/body
    width/height, or viewport units. Chromium and TypingMind keep their
    normal viewport sizing and app-owned scroll behavior. */
 
 /* ===========================================================
-   10 — Responsive and accessibility settings
+   08 — Responsive and accessibility settings
    =========================================================== */
 @media (max-width: 950px) {
-  html.${CLASS_NAME} [data-element-id="response-block"] {
-    max-width: none !important;
+  ${RESPONSE}${NATIVE_GUARD} {
     width: calc(100% - 24px) !important;
   }
-  html.${CLASS_NAME} [data-element-id="chat-space-end-part"] > div:has([data-element-id="message-input"]) {
-    max-width: none !important;
-    width: calc(100% - 16px) !important;
+  ${COMPOSER} > div:has([data-element-id="message-input"])${NATIVE_GUARD} {
+    width: calc(100% - 24px) !important;
   }
 }
 @media (max-width: 767px) {
-  html.${CLASS_NAME} [data-element-id="response-block"] {
+  ${RESPONSE}${NATIVE_GUARD} {
     padding-top: 14px !important;
     padding-bottom: 14px !important;
   }
-  html.${CLASS_NAME} [data-element-id="ai-response"] { font-size: 15.5px; line-height: 1.7; }
-  html.${CLASS_NAME} [data-element-id="response-block"] [data-element-id="user-message"] {
+  ${RESPONSE} [data-element-id="ai-response"]${NATIVE_GUARD} { font-size: 15.5px; line-height: 1.7; }
+  ${RESPONSE} [data-element-id="user-message"]${NATIVE_GUARD} {
     max-width: 88% !important;
     padding: 10px 14px !important;
     font-size: 15px !important;
   }
-  html.${CLASS_NAME} [data-element-id="chat-space-end-part"] {
-    padding-left: 7px;
-    padding-right: 7px;
+  ${COMPOSER}${NATIVE_GUARD} {
+    padding-inline: 0;
     padding-bottom: max(7px, env(safe-area-inset-bottom));
   }
-  html.${CLASS_NAME} [data-element-id="chat-space-end-part"] > div:has([data-element-id="message-input"]) {
+  ${COMPOSER} > div:has([data-element-id="message-input"])${NATIVE_GUARD} {
     border-radius: 23px !important;
     margin-bottom: 5px !important;
   }
-  html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox"] { font-size: 16px !important; }
+  ${COMPOSER} [data-element-id="chat-input-textbox"]${NATIVE_GUARD} { font-size: 16px !important; }
 }
 @media (prefers-reduced-motion: reduce) {
-  html.${CLASS_NAME} [data-element-id="chat-space-end-part"] > div:has([data-element-id="message-input"]) {
+  ${COMPOSER} > div:has([data-element-id="message-input"])${NATIVE_GUARD} {
     transition: none !important;
   }
 }
@@ -522,13 +536,14 @@ html.${CLASS_NAME} [data-element-id="response-block"] button:focus-visible {
       style = document.createElement('style');
       style.id = STYLE_ID;
       style.type = 'text/css';
-      style.textContent = css;
       (document.head || document.documentElement).appendChild(style);
     }
+    if (style.textContent !== css) style.textContent = css;
     return style;
   }
 
   function enable() {
+    if (destroyed) return false;
     ensureStyle();
     // A known previous theme uses a separate root class. Disable it without
     // touching its extension installation or user data.
@@ -545,6 +560,8 @@ html.${CLASS_NAME} [data-element-id="response-block"] button:focus-visible {
   }
 
   function disable() {
+    if (destroyed) return false;
+    document.removeEventListener('DOMContentLoaded', enable);
     document.documentElement.classList.remove(CLASS_NAME);
     delete document.documentElement.dataset.tmChatgptThemeVersion;
     return false;
@@ -555,7 +572,9 @@ html.${CLASS_NAME} [data-element-id="response-block"] button:focus-visible {
   }
 
   function onKeyDown(event) {
-    if (!event.repeat && (event.ctrlKey || event.metaKey) && event.altKey &&
+    if (!event.defaultPrevented && !event.isComposing && !event.repeat &&
+        !(event.getModifierState && event.getModifierState('AltGraph')) &&
+        (event.ctrlKey || event.metaKey) && event.altKey &&
         !event.shiftKey && event.code === 'KeyG') {
       event.preventDefault();
       toggle();
@@ -563,7 +582,9 @@ html.${CLASS_NAME} [data-element-id="response-block"] button:focus-visible {
   }
 
   function destroy() {
+    if (destroyed) return;
     disable();
+    destroyed = true;
     document.removeEventListener('keydown', onKeyDown);
     const style = document.getElementById(STYLE_ID);
     if (style) style.remove();
@@ -579,7 +600,7 @@ html.${CLASS_NAME} [data-element-id="response-block"] button:focus-visible {
       disable,
       toggle,
       destroy,
-      isEnabled: () => document.documentElement.classList.contains(CLASS_NAME)
+      isEnabled: () => !destroyed && document.documentElement.classList.contains(CLASS_NAME)
     })
   });
 
