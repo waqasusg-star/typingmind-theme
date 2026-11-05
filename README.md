@@ -85,4 +85,3 @@ The historical full-window and Kimi scripts are backups, not part of this
 release. Do not install them alongside it.
 
 Independent project; not affiliated with or endorsed by OpenAI or TypingMind.
-
