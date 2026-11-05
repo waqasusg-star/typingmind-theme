@@ -85,18 +85,23 @@
     padding: 18px 0 !important;
     border: 0 !important;
     border-radius: 0 !important;
-    background: transparent !important;
     box-shadow: none !important;
     transition: none !important;
+  }
+  [data-element-id="response-block"]:not(.is-pinned):not(.cursor-pointer) {
+    background: transparent !important;
+  }
+  [data-element-id="response-block"].cursor-pointer {
+    padding-inline-start: 40px !important;
   }
   [data-element-id="response-block"] [data-element-id="chat-avatar-container"] {
     display: none !important;
   }
-  [data-element-id="response-block"] > div:not([data-element-id="chat-avatar-container"]) {
+  [data-element-id="response-block"] > div[class~="w-full"] {
     width: 100% !important;
     min-width: 0 !important;
   }
-  [data-element-id="response-block"]:has([data-element-id="user-message"]) > div:not([data-element-id="chat-avatar-container"]) > div {
+  [data-element-id="response-block"]:has([data-element-id="user-message"]) > div[class~="w-full"] > div {
     align-items: flex-end !important;
     min-width: 0 !important;
   }
@@ -119,6 +124,11 @@
   [data-element-id="response-block"] [data-element-id="ai-response"] {
     min-width: 0 !important;
     max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
     color: var(--tm2-ink) !important;
     background: transparent !important;
     font: 400 16px/1.75 var(--tm2-font) !important;
@@ -196,6 +206,30 @@
     padding-inline: 0 !important;
     background: transparent !important;
     border: 0 !important;
+    color: var(--tm2-muted) !important;
+    font: 400 14px/1.6 var(--tm2-font) !important;
+  }
+  /* Activity groups are separate native rows, outside response-block. */
+  [data-element-id="chat-space-middle-part"] [data-activity-message-uuids] {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: var(--tm2-lane) !important;
+    margin: 0 auto !important;
+    padding: 4px 0 !important;
+  }
+  [data-activity-message-uuids] > div {
+    max-width: 100% !important;
+    margin-inline: 0 !important;
+    padding-inline: 0 !important;
+  }
+  [data-activity-message-uuids] [data-element-id="chat-avatar-container"] {
+    display: none !important;
+  }
+  [data-activity-message-uuids] [data-element-id="assistant-activity-status"] {
+    height: auto !important;
+    min-height: 36px !important;
+    margin: 0 !important;
+    padding: 0 !important;
     color: var(--tm2-muted) !important;
     font: 400 14px/1.6 var(--tm2-font) !important;
   }
