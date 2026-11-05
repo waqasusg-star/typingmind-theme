@@ -1,163 +1,28 @@
 'use strict';
-const {test, before, after} = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const {chromium} = require('playwright');
-
-const source = fs.readFileSync(path.join(__dirname, '../ChatGPT-inspired-TypingMind-theme.js'), 'utf8');
-const fixture = fs.readFileSync(path.join(__dirname, 'fixture.html'), 'utf8')
-  .replace('LONG_CODE_PLACEHOLDER', 'long_code_'.repeat(100))
-  .replace('LONG_TEXT_PLACEHOLDER', 'https://example.com/' + 'shipment'.repeat(120))
-  .replace('WIDE_TABLE_PLACEHOLDER', '<td>Long carrier reference 1234567890</td>'.repeat(30));
-let browser, context;
-before(async () => {
-  const options = process.env.THEME_TEST_BROWSER_CONFIG
-    ? JSON.parse(fs.readFileSync(process.env.THEME_TEST_BROWSER_CONFIG, 'utf8')) : {};
-  browser = await chromium.launch({...options, headless:true});
-  context = await browser.newContext();
+const {test,before,after}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const {chromium}=require('playwright');
+const source=fs.readFileSync(path.join(__dirname,'../ChatGPT-inspired-TypingMind-theme.js'),'utf8');
+const html=fs.readFileSync(path.join(__dirname,'native-layout.html'),'utf8');
+let browser,context;
+before(async()=>{const options=process.env.THEME_TEST_BROWSER_CONFIG?JSON.parse(fs.readFileSync(process.env.THEME_TEST_BROWSER_CONFIG,'utf8')):{};browser=await chromium.launch({...options,headless:true});context=await browser.newContext();});
+after(async()=>browser?.close());
+async function pageFor(width=1440,dark=false){const p=await context.newPage();await p.setViewportSize({width,height:1000});await p.setContent(html);if(dark)await p.evaluate(()=>document.documentElement.classList.add('dark'));return p;}
+async function snapshot(p,ids){return p.evaluate(ids=>Object.fromEntries(ids.map(id=>{const e=document.getElementById(id),s=getComputedStyle(e),r=e.getBoundingClientRect();return[id,{color:s.color,bg:s.backgroundColor,font:s.font,fontFamily:s.fontFamily,padding:s.padding,border:s.border,borderRadius:s.borderRadius,width:r.width,height:r.height,display:s.display}]})),ids);}
+const native=['sidebar','sidebar-avatar','nav-new','nav-settings','navigation','native-nav-button','settings','settings-preview','settings-button'];
+for(const width of [360,390,768,1024,1440,1920])for(const dark of [false,true])test(`native layout ${width}px ${dark?'dark':'light'}`,async()=>{
+ const p=await pageFor(width,dark),beforeNative=await snapshot(p,native);
+ const scale=await p.evaluate(()=>({innerWidth,innerHeight,scale:visualViewport.scale,zoom:getComputedStyle(document.documentElement).zoom,overflow:getComputedStyle(document.querySelector('#conversation')).overflowY}));
+ await p.addScriptTag({content:source});assert.deepEqual(await snapshot(p,native),beforeNative,'native interface changed');
+ const m=await p.evaluate(()=>{const r=id=>{const b=document.getElementById(id).getBoundingClientRect();return{left:b.left,right:b.right,width:b.width}};return{lane:r('lane'),row:r('assistant-row'),userRow:r('user-row'),card:r('card'),toolbar:r('toolbar'),answer:r('answer'),attachment:r('attachment'),user:r('user'),ink:getComputedStyle(document.getElementById('answer')).color,font:getComputedStyle(document.getElementById('answer')).fontFamily,inputFont:getComputedStyle(document.getElementById('input')).fontFamily,userFont:getComputedStyle(document.getElementById('user')).fontFamily,bg:getComputedStyle(document.getElementById('user')).backgroundColor,avatar:getComputedStyle(document.querySelector('#user-row [data-element-id="chat-avatar-container"]')).display,docWidth:document.documentElement.scrollWidth,innerWidth,innerHeight,scale:visualViewport.scale,zoom:getComputedStyle(document.documentElement).zoom,overflow:getComputedStyle(document.querySelector('#conversation')).overflowY};});
+ for(const key of ['row','card','toolbar','answer','userRow']){assert.ok(Math.abs(m[key].left-m.lane.left)<1,`${key} left edge differs`);assert.ok(Math.abs(m[key].right-m.lane.right)<1,`${key} right edge differs`);}
+ assert.ok(Math.abs(m.user.right-m.attachment.right)<1,'attachment and bubble right edges differ');assert.equal(m.avatar,'none');assert.equal(m.font,m.inputFont);assert.equal(m.font,m.userFont);assert.equal(m.bg,dark?'rgb(48, 48, 48)':'rgb(244, 244, 244)');assert.equal(m.ink,dark?'rgb(236, 236, 236)':'rgb(23, 23, 23)');assert.ok(m.lane.width<=768);assert.ok(m.docWidth<=width);for(const key of Object.keys(scale))assert.equal(m[key],scale[key]);
+ await p.evaluate(()=>window.TypingMindChatGPTTheme.disable());assert.deepEqual(await snapshot(p,native),beforeNative);await p.close();
 });
-after(async () => { await browser?.close(); });
-
-async function setup(width = 1440, dark = false) {
-  const page = await context.newPage();
-  await page.setViewportSize({width, height:1000});
-  await page.setContent(fixture);
-  if (dark) await page.evaluate(() => document.documentElement.classList.add('dark'));
-  return page;
-}
-
-const sentinels = ['sidebar','sidebar-fork','sidebar-avatar','nav-settings','navigation','nav-model',
-  'settings','settings-preview','settings-copy','settings-input','home-response','menu-button',
-  'response-menu-copy','response-menu-text'];
-async function nativeSnapshot(page) {
-  return page.evaluate(ids => Object.fromEntries(ids.map(id => {
-    const element = document.getElementById(id), style = getComputedStyle(element);
-    const rect = element.getBoundingClientRect();
-    const properties = ['backgroundColor','color','fontFamily','fontSize','fontWeight','lineHeight',
-      'borderRadius','padding','border','boxShadow','outline','width','height'];
-    // Chat content height changes naturally, so menu position is not a native invariant.
-    return [id, {...Object.fromEntries(properties.map(key => [key,style[key]])), width:rect.width,height:rect.height}];
-  })), sentinels);
-}
-
-for (const width of [360, 390, 768, 1024, 1440, 1920]) for (const dark of [false,true]) {
-  test(`chat-only layout: ${width}px ${dark ? 'dark' : 'light'}`, async () => {
-    const page = await setup(width, dark);
-    const nativeBefore = await nativeSnapshot(page);
-    const viewportBefore = await page.evaluate(() => ({width:innerWidth,height:innerHeight,scale:visualViewport.scale,
-      rootZoom:getComputedStyle(document.documentElement).zoom,bodyZoom:getComputedStyle(document.body).zoom,
-      overflow:getComputedStyle(document.getElementById('conversation')).overflowY}));
-    await page.addScriptTag({content:source});
-    assert.deepEqual(await nativeSnapshot(page), nativeBefore, 'native sidebar/settings/navigation/menus changed');
-    const result = await page.evaluate(() => {
-      const rect = id => document.getElementById(id).getBoundingClientRect();
-      const css = id => getComputedStyle(document.getElementById(id));
-      return {color:css('answer').color,bubble:css('answer').fontSize, radius:document.querySelector('[data-element-id="user-message"]') && getComputedStyle(document.querySelector('[data-element-id="user-message"]')).borderRadius,
-        docWidth:document.documentElement.scrollWidth, width:innerWidth,height:innerHeight,scale:visualViewport.scale,
-        rootZoom:getComputedStyle(document.documentElement).zoom,bodyZoom:getComputedStyle(document.body).zoom,
-        overflow:css('conversation').overflowY, row:rect('answer-row').width,composer:rect('composer').width,
-        codeScroll:document.getElementById('long-code').scrollWidth > document.getElementById('long-code').clientWidth,
-        sidebarToken:css('sidebar').getPropertyValue('--cg-text')};
-    });
-    assert.equal(result.color, dark ? 'rgb(244, 244, 244)' : 'rgb(13, 13, 13)');
-    assert.equal(result.radius, '21px');
-    assert.ok(result.docWidth <= width, `document widened to ${result.docWidth}`);
-    assert.ok(result.row <= 920);
-    assert.ok(Math.abs(result.row-result.composer) < 1, 'composer should align with reading lane');
-    assert.ok(result.codeScroll, 'long code needs horizontal scrolling');
-    assert.equal(result.sidebarToken, '', 'theme variables leaked to sidebar');
-    for (const key of Object.keys(viewportBefore)) assert.equal(result[key],viewportBefore[key],`${key} changed`);
-    await page.evaluate(() => window.TypingMindChatGPTTheme.disable());
-    assert.deepEqual(await nativeSnapshot(page), nativeBefore);
-    await page.close();
-  });
-}
-
-test('nested code retains syntax colors and avoids inline-code borders', async () => {
-  const page = await setup();
-  await page.addScriptTag({content:source});
-  const styles = await page.evaluate(() => Object.fromEntries(['inline-code','nested-code'].map(id => {
-    const s = getComputedStyle(document.getElementById(id));
-    return [id,{border:s.borderTopWidth,color:s.color,background:s.backgroundColor}];
-  })));
-  assert.equal(styles['inline-code'].border,'1px');
-  assert.equal(styles['nested-code'].border,'0px');
-  assert.equal(styles['nested-code'].color,'rgb(139, 92, 246)');
-  assert.equal(styles['nested-code'].background,'rgba(0, 0, 0, 0)');
-  await page.locator('#copy-message').click();
-  assert.equal(await page.evaluate(() => window.testClicks),1);
-  await page.locator('#input').fill('Draft preserved on toggle');
-  await page.keyboard.press('Control+Alt+g');
-  assert.equal(await page.locator('#input').inputValue(),'Draft preserved on toggle');
-  await page.close();
-});
-
-test('duplicate loads, style repair, update and retained old APIs are safe', async () => {
-  const page = await setup();
-  await page.addScriptTag({content:source});
-  await page.evaluate(() => { window.oldTheme = window.TypingMindChatGPTTheme; });
-  await page.addScriptTag({content:source});
-  assert.equal(await page.locator('#tm-chatgpt-ui-styles').count(),1);
-  await page.keyboard.press('Control+Alt+g');
-  assert.equal(await page.evaluate(() => window.TypingMindChatGPTTheme.isEnabled()),false);
-  await page.evaluate(() => {
-    document.getElementById('tm-chatgpt-ui-styles').textContent = '/* stale */';
-    window.TypingMindChatGPTTheme.enable();
-  });
-  assert.ok((await page.locator('#tm-chatgpt-ui-styles').textContent()).length > 1000);
-  await page.addScriptTag({content:source.replace("const VERSION = '1.5.0'", "const VERSION = '1.5.1'")});
-  const current = await page.evaluate(() => {
-    window.oldTheme.destroy();
-    window.oldTheme.enable();
-    window.oldTheme.disable();
-    return {enabled:window.TypingMindChatGPTTheme.isEnabled(),oldEnabled:window.oldTheme.isEnabled(),version:window.TypingMindChatGPTTheme.version};
-  });
-  assert.deepEqual(current,{enabled:true,oldEnabled:false,version:'1.5.1'});
-  await page.close();
-});
-
-test('destroy/disable before DOM ready cancels deferred enable', async () => {
-  for (const action of ['destroy','disable']) {
-    const page = await context.newPage();
-    await page.setContent(`<html><head><script>${source}</script><script>window.TypingMindChatGPTTheme.${action}();</script></head><body></body></html>`);
-    assert.equal(await page.evaluate(() => document.documentElement.classList.contains('tm-chatgpt-ui')),false);
-    if (action === 'destroy') {
-      assert.equal(await page.locator('#tm-chatgpt-ui-styles').count(),0);
-      assert.equal(await page.evaluate(() => 'TypingMindChatGPTTheme' in window),false);
-    }
-    await page.close();
-  }
-});
-
-test('keyboard toggle respects composition, repeats, existing handlers and AltGraph', async () => {
-  const page = await setup();
-  await page.addScriptTag({content:source});
-  const result = await page.evaluate(() => {
-    const base = {code:'KeyG',ctrlKey:true,altKey:true,bubbles:true,cancelable:true};
-    const events = [{repeat:true},{isComposing:true},{shiftKey:true},{metaKey:false,ctrlKey:false}];
-    for (const extra of events) document.dispatchEvent(new KeyboardEvent('keydown',{...base,...extra}));
-    const prevented = new KeyboardEvent('keydown',base); prevented.preventDefault(); document.dispatchEvent(prevented);
-    const altGraph = new KeyboardEvent('keydown',base);
-    Object.defineProperty(altGraph,'getModifierState',{value:key => key === 'AltGraph'}); document.dispatchEvent(altGraph);
-    return window.TypingMindChatGPTTheme.isEnabled();
-  });
-  assert.equal(result,true);
-  await page.keyboard.press('Meta+Alt+g');
-  assert.equal(await page.evaluate(() => window.TypingMindChatGPTTheme.isEnabled()),false);
-  await page.close();
-});
-
-test('reduced motion and dark attribute work without document styling', async () => {
-  const page = await setup();
-  await page.emulateMedia({reducedMotion:'reduce'});
-  await page.addScriptTag({content:source});
-  await page.evaluate(() => document.documentElement.dataset.theme = 'dark');
-  const result = await page.evaluate(() => ({
-    transition:getComputedStyle(document.getElementById('composer')).transitionDuration,
-    color:getComputedStyle(document.getElementById('answer')).color,
-    rootToken:getComputedStyle(document.documentElement).getPropertyValue('--cg-text')
-  }));
-  assert.deepEqual(result,{transition:'0s',color:'rgb(244, 244, 244)',rootToken:''});
-  await page.close();
-});
+test('long code and wide tables scroll without changing the application width',async()=>{const p=await pageFor(390);await p.evaluate(()=>{const e=document.querySelector('#stress');e.innerHTML='<pre id="wide-code"><code>'+'code_'.repeat(100)+'</code></pre><table id="wide-table"><tbody><tr>'+'<td>Carrier reference 12345</td>'.repeat(30)+'</tr></tbody></table>';});await p.addScriptTag({content:source});assert.deepEqual(await p.evaluate(()=>({doc:document.documentElement.scrollWidth,view:innerWidth,scroll:document.querySelector('#wide-code').scrollWidth>document.querySelector('#wide-code').clientWidth,answer:document.querySelector('#answer').scrollWidth>document.querySelector('#answer').clientWidth})),{doc:390,view:390,scroll:true,answer:true});await p.close();});
+test('native nested menus form a scope boundary',async()=>{const p=await pageFor();await p.evaluate(()=>{const e=document.createElement('div');e.id='menu';e.className='native-island';e.setAttribute('role','menu');e.innerHTML='<button id="menu-button">Original option</button><p id="menu-text">Native settings</p>';document.querySelector('#toolbar').append(e);});const a=await snapshot(p,['menu','menu-button','menu-text']);await p.addScriptTag({content:source});assert.deepEqual(await snapshot(p,['menu','menu-button','menu-text']),a);await p.close();});
+test('drafts, control handlers, syntax colors and native textarea height survive',async()=>{const p=await pageFor();await p.locator('#input').fill('Draft kept');await p.locator('#input').evaluate(e=>e.style.setProperty('height','200px','important'));await p.addScriptTag({content:source});await p.locator('#copy').click();assert.equal(await p.evaluate(()=>window.clicks),1);const s=await p.evaluate(()=>({syntax:getComputedStyle(document.querySelector('.token')).color,codeBg:getComputedStyle(document.querySelector('#nested')).backgroundColor,height:document.querySelector('#input').getBoundingClientRect().height}));assert.deepEqual(s,{syntax:'rgb(168, 85, 247)',codeBg:'rgba(0, 0, 0, 0)',height:200});await p.keyboard.press('Control+Alt+g');assert.equal(await p.locator('#input').inputValue(),'Draft kept');await p.close();});
+test('duplicate loads, replacement and destroyed APIs have no lingering effects',async()=>{const p=await pageFor();await p.addScriptTag({content:source});await p.evaluate(()=>window.retired=window.TypingMindChatGPTTheme);await p.addScriptTag({content:source});assert.equal(await p.locator('#tm-cg-v2-style').count(),1);await p.keyboard.press('Control+Alt+g');assert.equal(await p.evaluate(()=>window.TypingMindChatGPTTheme.isEnabled()),false);await p.addScriptTag({content:source.replace("const version = '2.0.0'","const version = '2.0.1'")});assert.deepEqual(await p.evaluate(()=>{window.retired.destroy();window.retired.disable();window.retired.enable();return{version:window.TypingMindChatGPTTheme.version,enabled:window.TypingMindChatGPTTheme.isEnabled(),old:window.retired.isEnabled()}}),{version:'2.0.1',enabled:true,old:false});await p.evaluate(()=>window.TypingMindChatGPTTheme.destroy());assert.equal(await p.locator('#tm-cg-v2-style').count(),0);await p.close();});
+test('keyboard guards and reduced motion work',async()=>{const p=await pageFor();await p.emulateMedia({reducedMotion:'reduce'});await p.addScriptTag({content:source});assert.equal(await p.locator('#card').evaluate(e=>getComputedStyle(e).transitionDuration),'0s');assert.equal(await p.evaluate(()=>{const b={ctrlKey:true,altKey:true,code:'KeyG',cancelable:true};for(const e of [{repeat:true},{shiftKey:true},{isComposing:true}])document.dispatchEvent(new KeyboardEvent('keydown',{...b,...e}));const e=new KeyboardEvent('keydown',b);e.preventDefault();document.dispatchEvent(e);return window.TypingMindChatGPTTheme.isEnabled()}),true);await p.close();});
