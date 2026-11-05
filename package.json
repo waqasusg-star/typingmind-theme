@@ -1,8 +1,8 @@
 {
   "name": "typingmind-chatgpt-chat-only-theme",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "private": true,
-  "description": "ChatGPT-inspired conversation and composer styling for TypingMind",
+  "description": "ChatGPT-inspired typography and Markdown tables for the default TypingMind layout",
   "scripts": {
     "check": "node --check ChatGPT-inspired-TypingMind-theme.js",
     "test": "node --test tests/theme.test.cjs"
