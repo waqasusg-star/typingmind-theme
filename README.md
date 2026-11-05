@@ -1,64 +1,55 @@
-# TypingMind chat-only theme — 2.0.1
+# TypingMind typography and tables only — v3.0.0
 
-A fresh implementation built around TypingMind's native block messages,
-absolute avatars and separate composer parent. The earlier stylesheet and
-its flex-row test fixture were replaced.
+This release follows the latest requested scope: **keep TypingMind's default
+layout and icons; change only font family, font size, boldness and table design.**
 
 ## Install
 
-**Uninstall earlier ChatGPT/Kimi appearance extensions first.** Keeping an older
-startup script installed can replace the newer theme after a restart.
-
-In **Settings → Extensions**, install this exact release URL, then choose
-**Restart Now**:
+1. Uninstall all earlier ChatGPT/Kimi appearance-theme extensions, including
+   v2.0.0 and v2.0.1. Keep only this typography-only extension.
+2. In **Settings → Extensions**, install this exact URL.
+3. Click **Restart Now**.
 
 ```text
-https://cdn.jsdelivr.net/gh/waqasusg-star/typingmind-theme@ee654923b2a911e9d67838588abf9b593fb3ead3/ChatGPT-inspired-TypingMind-theme.js
+https://cdn.jsdelivr.net/gh/waqasusg-star/typingmind-theme@9840f208b912e03e1bbca882a16a5d5b2258efd3/ChatGPT-inspired-TypingMind-theme.js
 ```
 
-This URL pins the tested source and serves it as JavaScript. Avoid the plain-text
-raw GitHub URL and the CDN's cached `@main` link. Future releases need a new
-pinned URL. The rebuilt v2 theme was verified loading after restart in the current public
-TypingMind interface. The current release is covered by the checks below.
+This URL pins the tested JavaScript release. Do not use a raw GitHub URL or a
+cached CDN `@main` link. Future updates need their new release URL.
 
-## Fixed in 2.0.1
+## Changes
 
-TypingMind nests file cards in a separate full-width flex column. This release
-aligns the children of that native column to the right, including multiple
-attachments and messages without text. Card appearance and click actions remain
-native. The regression fixture now includes this exact additional wrapper.
+| Content | Appearance |
+| --- | --- |
+| Chat messages and input text | System sans-serif, 16px, regular weight |
+| Bold text | Weight 600 |
+| Main/subheadings | 24px / 20px / 18px; weight 600 |
+| Code text | Monospace, 14px; native syntax colors |
+| Markdown tables | 15px, semibold header, subtle light/dark header fill and row separators |
 
-## Design
+Table column alignment and writing direction remain as supplied by TypingMind
+and Markdown. Table cell padding and borders change as part of table design.
 
-- One 768px maximum column for messages, model toolbar and input card.
-- Matching outer gutters: 24px desktop, 16px mobile.
-- Chat avatars removed and the reserved avatar padding cleared.
-- User bubbles and attachment cards share a right edge.
-- Matching 16px system sans-serif messages and input; consistent Markdown spacing and aligned native activity-status rows.
-- Neutral light/dark conversation surfaces and controls, rounded composer,
-  visible keyboard focus and local horizontal overflow for wide content.
-- Original sidebar, top navigation, settings, dialogs and menus retain native styling.
+## Native behavior retained
 
-The native textarea keeps its app-owned height and resize behavior. Controls,
-syntax colors, attachment actions and selected tool states remain functional.
-The script does not move DOM nodes or change document dimensions, browser zoom,
-viewport metadata, app scrolling, saved preferences or messages.
+The stylesheet has **no layout or spacing overrides outside tables**. It does
+not hide avatars or icons, move attachments, change bubble colors or shapes,
+center or resize the conversation, change text direction, restyle the toolbar,
+rebuild the composer, or alter navigation, sidebar, settings, dialogs, scrolling
+or browser zoom. Native line-height and margin rules are retained; text naturally
+reflows at the chosen font size.
 
-## Scope and compatibility
+Loading v3 replaces the previous theme through its public cleanup API, removing
+its stylesheet and layout class. Older theme extensions must still be uninstalled
+so their startup scripts cannot load again on the next restart.
 
-All presentation rules are bounded to `chat-space-background` with CSS `@scope`.
-Nested dialogs, menus, listboxes, option panels and the navigation header form
-explicit lower boundaries. Use a current browser with `@scope` support; older
-engines retain native styling. This is a ChatGPT-inspired adaptation rather than
-a pixel-identical clone of the ChatGPT app.
-
-There are no observers, polling, chat-content readers, storage access, network
-requests or app-state integrations in the production script.
+All styling is scoped to chat text/input and Markdown tables. No chat contents,
+credentials, storage or network APIs are accessed by the script. Requires a
+current browser supporting CSS `@scope`.
 
 ## Controls
 
-**Ctrl+Alt+G** on Windows/Linux or **Cmd+Alt+G** on macOS toggles the theme.
-The existing console API remains available:
+Use **Ctrl+Alt+G** (Windows/Linux) or **Cmd+Alt+G** (macOS) to toggle.
 
 ```js
 window.TypingMindChatGPTTheme.version
@@ -69,10 +60,6 @@ window.TypingMindChatGPTTheme.toggle()
 window.TypingMindChatGPTTheme.destroy()
 ```
 
-Disable restores native styling. Destroy also removes the stylesheet and
-shortcut listener. Retained APIs from destroyed releases cannot alter the
-replacement. Uninstall the extension to stop loading it on future visits.
-
 ## Verification
 
 ```sh
@@ -82,24 +69,20 @@ npm run check
 npm test
 ```
 
-The rewritten synthetic fixture models native block rows, absolute avatars,
-inline 750px constraints and the separate model toolbar/composer parent observed
-in TypingMind's public renderer and DOM. It includes synthetic text and attachments.
+Eleven Chromium fixture checks verify native layout/direction/surface properties
+and icon sizes at 390, 768 and 1440px in light/dark mode, unchanged chat markup,
+16px message/input fonts, semibold text, table colors and existing column
+alignment, draft retention, button/activity handlers, native textarea height,
+syntax colors, menu/settings isolation, shortcut guards and cleanup.
 
-The 19 Chromium checks cover six widths (360, 390, 768, 1024, 1440, 1920px), both
-light and dark mode, exact shared left/right edges, attachments, consistent fonts,
-native sidebar/header/settings/menu invariants, unchanged zoom and viewport,
-long code/tables, syntax colors, draft retention, live button handlers, textarea
-height, duplicate loading, version replacement, cleanup, keyboard guards, reduced motion, pin highlights and message-selection controls. Desktop light/dark and mobile screenshots were visually reviewed.
+A CSS rule audit rejects any non-table declaration except font family, size or
+weight. A separate upgrade check using the actual v2.0.1 script verified that
+v3 restores the native avatars, composer width, attachment alignment and bubble
+color, and removes the old stylesheet. Testing uses synthetic conversations;
+private account rendering and provider streaming were not tested.
 
-Full signed-in provider streaming, private conversation rendering and runtime
-testing on other browser engines were not performed. No private chat exports
-were used. TypingMind can change its DOM hooks; recheck after substantial UI updates.
-
-## Files
-
-`ChatGPT-inspired-TypingMind-theme.js` is the standalone current release. The
-historical full-window and Kimi scripts remain as backups; do not install them
-alongside this release. No runtime package dependencies are required.
+The historical full-window and Kimi scripts are backups, not part of this
+release. Do not install them alongside it.
 
 Independent project; not affiliated with or endorsed by OpenAI or TypingMind.
+
