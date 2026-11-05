@@ -1,11 +1,14 @@
 /*!
- * ChatGPT-inspired UI for TypingMind
- * Version: 1.3.0 | 2026-11-06
+ * ChatGPT-inspired chat-area styling for TypingMind
+ * Version: 1.4.0 | 2026-11-06
  *
  * Independent visual theme. Not affiliated with or endorsed by OpenAI or TypingMind.
  * Changes appearance only: does not read chats, API keys, prompts, or account data;
  * does not send network requests or create persistent storage.
  *
+ * Scope: chat conversation, message content and composer only.
+ * Original TypingMind sidebar, toolbar, settings, menus and home UI remain unchanged.
+ * Native browser scaling / viewport sizing unchanged.
  * Shortcut: Ctrl/Cmd + Alt + G (toggle)
  * Console API: window.TypingMindChatGPTTheme.{enable,disable,toggle,destroy,isEnabled}
  *
@@ -15,7 +18,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.3.0';
+  const VERSION = '1.4.0';
   const CLASS_NAME = 'tm-chatgpt-ui';
   const STYLE_ID = 'tm-chatgpt-ui-styles';
   const API_NAME = 'TypingMindChatGPTTheme';
@@ -35,21 +38,19 @@
     }
   }
 
-  // CSS applies ONLY while the theme class is present on <html>.
-  // Explicit [data-element-id] selectors come from the known TypingMind UI.
-  // Deliberately avoid setting position, overflow, or height on app scroll roots.
+  // CSS is opt-in and targets only TypingMind conversation and composer elements.
+  // Do not alter html/body colors, document font, application layout, sidebar,
+  // title bar, navigation, settings, home screen, popovers, or browser zoom.
+  // Selectors based on known TypingMind data-element-id hooks; no app reflow.
   const css = String.raw`
 /* ===========================================================
-   01 — Design tokens: quiet neutrals, comfortable readability
+   01 — Chat-only tokens (no global page or window styling)
    =========================================================== */
 html.${CLASS_NAME} {
   --cg-page: #ffffff;
-  --cg-sidebar: #f9f9f9;
   --cg-surface: #ffffff;
-  --cg-panel: #ffffff;
   --cg-wash: #f5f5f5;
   --cg-hover: #ededed;
-  --cg-active: #eaeaea;
   --cg-user: #f4f4f4;
   --cg-code: #f7f7f8;
   --cg-code-head: #f0f0f0;
@@ -59,24 +60,18 @@ html.${CLASS_NAME} {
   --cg-stroke: #e6e6e6;
   --cg-stroke-strong: #cdcdcd;
   --cg-link: #126dc1;
-  --cg-selection: #dbeafe;
   --cg-send: #0d0d0d;
   --cg-send-text: #ffffff;
   --cg-shadow: 0 2px 14px rgba(0, 0, 0, .055);
-  --cg-pop-shadow: 0 9px 32px rgba(0, 0, 0, .12);
   --cg-font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
              "Helvetica Neue", Helvetica, Arial, sans-serif;
-  color-scheme: light;
 }
 html.dark.${CLASS_NAME},
 html.${CLASS_NAME}[data-theme="dark"] {
   --cg-page: #212121;
-  --cg-sidebar: #171717;
   --cg-surface: #303030;
-  --cg-panel: #2b2b2b;
   --cg-wash: #292929;
   --cg-hover: #2b2b2b;
-  --cg-active: #343434;
   --cg-user: #303030;
   --cg-code: #282828;
   --cg-code-head: #333333;
@@ -86,110 +81,17 @@ html.${CLASS_NAME}[data-theme="dark"] {
   --cg-stroke: #414141;
   --cg-stroke-strong: #626262;
   --cg-link: #8abcfb;
-  --cg-selection: #2d4662;
   --cg-send: #f4f4f4;
   --cg-send-text: #151515;
   --cg-shadow: 0 2px 16px rgba(0, 0, 0, .12);
-  --cg-pop-shadow: 0 12px 36px rgba(0, 0, 0, .33);
-  color-scheme: dark;
 }
-html.${CLASS_NAME}, html.${CLASS_NAME} body {
-  background: var(--cg-page) !important;
-  color: var(--cg-text);
-  font-family: var(--cg-font);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-html.${CLASS_NAME} ::selection { background: var(--cg-selection); color: var(--cg-text); }
 
 /* ===========================================================
-   02 — Application canvas, top bar and navigation
+   02 — Chat content canvas ONLY, not application windows/nav
    =========================================================== */
-html.${CLASS_NAME} [data-element-id="main-content-area"],
-html.${CLASS_NAME} [data-element-id="chat-space-background"],
 html.${CLASS_NAME} [data-element-id="chat-space-middle-part"],
 html.${CLASS_NAME} [data-element-id="chat-space-end-part"] {
   background: var(--cg-page) !important;
-  color: var(--cg-text);
-}
-html.${CLASS_NAME} [data-element-id="chat-space-beginning-part"] {
-  background: var(--cg-page) !important;
-  color: var(--cg-text);
-  border-bottom: 1px solid transparent !important;
-  box-shadow: none !important;
-}
-html.${CLASS_NAME} [data-element-id="current-chat-title"],
-html.${CLASS_NAME} [data-element-id="model-name"] {
-  color: var(--cg-text) !important;
-  font-weight: 600 !important;
-  letter-spacing: -.018em;
-}
-
-/* ===========================================================
-   03 — Chat history sidebar: subtle hover, clear active row
-   =========================================================== */
-html.${CLASS_NAME} [data-element-id="workspace-bar"],
-html.${CLASS_NAME} [data-element-id="nav-sidebar-container"],
-html.${CLASS_NAME} [data-element-id="side-bar-background"],
-html.${CLASS_NAME} [data-element-id="sidebar-beginning-part"],
-html.${CLASS_NAME} [data-element-id="sidebar-middle-part"],
-html.${CLASS_NAME} [data-element-id="side-bar-footer"] {
-  background: var(--cg-sidebar) !important;
-  color: var(--cg-secondary) !important;
-  border-color: transparent !important;
-}
-html.${CLASS_NAME} [data-element-id="nav-sidebar-container"] button,
-html.${CLASS_NAME} [data-element-id="nav-sidebar-container"] a,
-html.${CLASS_NAME} [data-element-id="side-bar-footer"] button,
-html.${CLASS_NAME} [data-element-id="workspace-bar"] button {
-  border-radius: 10px !important;
-  color: var(--cg-secondary) !important;
-  transition: background-color .12s ease, color .12s ease;
-}
-html.${CLASS_NAME} [data-element-id="nav-sidebar-container"] button:hover,
-html.${CLASS_NAME} [data-element-id="nav-sidebar-container"] a:hover,
-html.${CLASS_NAME} [data-element-id="side-bar-footer"] button:hover,
-html.${CLASS_NAME} [data-element-id="workspace-bar"] button:hover {
-  background: var(--cg-hover) !important;
-  color: var(--cg-text) !important;
-}
-html.${CLASS_NAME} [data-element-id="new-chat-button-in-side-bar"] {
-  color: var(--cg-text) !important;
-  background: transparent !important;
-  border: 1px solid transparent !important;
-  border-radius: 10px !important;
-  box-shadow: none !important;
-  font-weight: 600 !important;
-}
-html.${CLASS_NAME} [data-element-id="new-chat-button-in-side-bar"] * { color: inherit !important; }
-html.${CLASS_NAME} [data-element-id="new-chat-button-in-side-bar"]:hover {
-  background: var(--cg-hover) !important;
-}
-html.${CLASS_NAME} [data-element-id="search-chats-bar"] {
-  background: transparent !important;
-  color: var(--cg-secondary) !important;
-  border-color: transparent !important;
-  border-radius: 10px !important;
-}
-html.${CLASS_NAME} [data-element-id="search-chats-bar"]:focus-within {
-  background: var(--cg-surface) !important;
-  border-color: var(--cg-stroke-strong) !important;
-}
-html.${CLASS_NAME} [data-element-id="custom-chat-item"],
-html.${CLASS_NAME} [data-element-id="selected-chat-item"] {
-  border-radius: 10px !important;
-  border-color: transparent !important;
-}
-html.${CLASS_NAME} [data-element-id="custom-chat-item"]:hover {
-  background: var(--cg-hover) !important;
-}
-html.${CLASS_NAME} [data-element-id="selected-chat-item"] {
-  background: var(--cg-active) !important;
-  color: var(--cg-text) !important;
-  font-weight: 500;
-}
-html.${CLASS_NAME} [data-element-id="selected-chat-item"] * {
-  color: var(--cg-text) !important;
 }
 
 /* ===========================================================
@@ -197,9 +99,9 @@ html.${CLASS_NAME} [data-element-id="selected-chat-item"] * {
    =========================================================== */
 html.${CLASS_NAME} [data-element-id="response-block"] {
   box-sizing: border-box;
-  /* Allow messages to use the available chat area without forced zoom. */
-  max-width: none !important;
-  width: calc(100% - 64px) !important;
+  /* ChatGPT-style reading lane. No changes to TypingMind app layout. */
+  max-width: 920px !important;
+  width: calc(100% - 32px) !important;
   margin-left: auto !important;
   margin-right: auto !important;
   padding-top: 18px !important;
@@ -229,7 +131,7 @@ html.${CLASS_NAME} [data-element-id="chat-avatar-container"] {
 html.${CLASS_NAME} [data-element-id="chat-avatar-container"] img {
   border-radius: 50% !important;
 }
-html.${CLASS_NAME} [data-element-id="user-message"] {
+html.${CLASS_NAME} [data-element-id="response-block"] [data-element-id="user-message"] {
   box-sizing: border-box;
   display: block;
   width: fit-content !important;
@@ -245,7 +147,7 @@ html.${CLASS_NAME} [data-element-id="user-message"] {
   line-height: 1.58 !important;
   overflow-wrap: anywhere;
 }
-html.${CLASS_NAME} [data-element-id="user-message"] * {
+html.${CLASS_NAME} [data-element-id="response-block"] [data-element-id="user-message"] * {
   color: inherit !important;
 }
 html.${CLASS_NAME} [data-element-id="assistant-activity-status"] {
@@ -438,8 +340,8 @@ html.${CLASS_NAME} [data-element-id="chat-space-end-part"] {
 html.${CLASS_NAME} [data-element-id="chat-space-end-part"] > div:has([data-element-id="message-input"]) {
   box-sizing: border-box;
   /* Keep the composer aligned with the newly expanded conversation lane. */
-  width: calc(100% - 64px) !important;
-  max-width: none !important;
+  width: calc(100% - 32px) !important;
+  max-width: 920px !important;
   margin-left: auto !important;
   margin-right: auto !important;
   margin-top: 0 !important;
@@ -458,9 +360,9 @@ html.${CLASS_NAME} [data-element-id="chat-space-end-part"] > div:has([data-eleme
   border-color: var(--cg-stroke-strong) !important;
   box-shadow: var(--cg-shadow) !important;
 }
-html.${CLASS_NAME} [data-element-id="message-input"],
-html.${CLASS_NAME} [data-element-id="input-row"],
-html.${CLASS_NAME} [data-element-id="chat-input-textbox-container"] {
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="message-input"],
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="input-row"],
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox-container"] {
   background: transparent !important;
   color: var(--cg-text);
   border: 0 !important;
@@ -468,12 +370,12 @@ html.${CLASS_NAME} [data-element-id="chat-input-textbox-container"] {
   outline: 0 !important;
   box-shadow: none !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-input-textbox-container"],
-html.${CLASS_NAME} [data-element-id="chat-input-textbox-container"].editing {
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox-container"],
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox-container"].editing {
   padding: 0 !important;
   overflow: visible;
 }
-html.${CLASS_NAME} [data-element-id="chat-input-textbox"] {
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox"] {
   min-height: 48px !important;
   max-height: 260px !important;
   padding: 13px 13px 6px !important;
@@ -488,37 +390,37 @@ html.${CLASS_NAME} [data-element-id="chat-input-textbox"] {
   line-height: 1.55 !important;
   caret-color: var(--cg-text);
 }
-html.${CLASS_NAME} [data-element-id="chat-input-textbox"]:focus,
-html.${CLASS_NAME} [data-element-id="chat-input-textbox"]:focus-visible {
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox"]:focus,
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox"]:focus-visible {
   outline: 0 !important;
   box-shadow: none !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-input-textbox"]::placeholder {
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox"]::placeholder {
   color: var(--cg-tertiary) !important;
   opacity: 1;
 }
-html.${CLASS_NAME} [data-element-id="chat-input-actions"] {
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] {
   background: transparent !important;
   min-height: 39px;
   padding: 3px 5px 0 !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-input-actions"] .scroll-indicator-gradient::after {
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] .scroll-indicator-gradient::after {
   background: linear-gradient(90deg, transparent, var(--cg-surface)) !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-input-actions"] button,
-html.${CLASS_NAME} [data-element-id="model-setting-button"],
-html.${CLASS_NAME} [data-element-id="output-settings-button"] {
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] button,
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="model-setting-button"],
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="output-settings-button"] {
   color: var(--cg-secondary) !important;
   border-radius: 999px !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-input-actions"] button:hover,
-html.${CLASS_NAME} [data-element-id="model-setting-button"]:hover,
-html.${CLASS_NAME} [data-element-id="output-settings-button"]:hover {
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] button:hover,
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="model-setting-button"]:hover,
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="output-settings-button"]:hover {
   color: var(--cg-text) !important;
   background: var(--cg-hover) !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-input-actions"] [data-element-id="send-button"],
-html.${CLASS_NAME} [data-element-id="chat-input-actions"] [data-element-id="more-options-button"] {
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="send-button"],
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="more-options-button"] {
   box-sizing: border-box;
   min-width: 36px !important;
   height: 36px !important;
@@ -534,62 +436,33 @@ html.${CLASS_NAME} [data-element-id="chat-input-actions"] [data-element-id="more
   white-space: nowrap;
   opacity: 1;
 }
-html.${CLASS_NAME} [data-element-id="chat-input-actions"] [data-element-id="more-options-button"] {
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="more-options-button"] {
   min-width: 34px !important;
   width: 34px !important;
   padding: 0 !important;
   margin-left: 2px;
 }
-html.${CLASS_NAME} [data-element-id="chat-input-actions"] [data-element-id="send-button"] *,
-html.${CLASS_NAME} [data-element-id="chat-input-actions"] [data-element-id="more-options-button"] * {
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="send-button"] *,
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="more-options-button"] * {
   color: inherit !important;
 }
-html.${CLASS_NAME} [data-element-id="chat-input-actions"] [data-element-id="send-button"]:hover,
-html.${CLASS_NAME} [data-element-id="chat-input-actions"] [data-element-id="more-options-button"]:hover {
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="send-button"]:hover,
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="more-options-button"]:hover {
   background: var(--cg-send) !important;
   color: var(--cg-send-text) !important;
   opacity: .83;
 }
-html.${CLASS_NAME} [data-element-id="chat-input-actions"] [data-element-id="send-button"]:disabled,
-html.${CLASS_NAME} [data-element-id="chat-input-actions"] [data-element-id="more-options-button"]:disabled {
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="send-button"]:disabled,
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-actions"] [data-element-id="more-options-button"]:disabled {
   background: var(--cg-hover) !important;
   color: var(--cg-tertiary) !important;
   opacity: .75;
 }
-html.${CLASS_NAME} [data-element-id="new-chat-button"],
-html.${CLASS_NAME} [data-element-id="regenerate-button"] {
-  background: transparent !important;
-  color: var(--cg-secondary) !important;
-  border: 0 !important;
-  border-radius: 999px !important;
-  box-shadow: none !important;
-}
-html.${CLASS_NAME} [data-element-id="new-chat-button"]:hover,
-html.${CLASS_NAME} [data-element-id="regenerate-button"]:hover {
-  background: var(--cg-hover) !important;
-  color: var(--cg-text) !important;
-}
+/* TypingMind's new-chat, regenerate, dropdowns and popovers remain native. */
 
-/* ===========================================================
-   08 — Popovers, menus and dialogs: surfaces only, no reflow
-   =========================================================== */
-html.${CLASS_NAME} [data-element-id="pop-up-modal"],
-html.${CLASS_NAME} [data-element-id="model-select-options"],
-html.${CLASS_NAME} [data-element-id="agent-select-options"] {
-  background: var(--cg-panel) !important;
-  color: var(--cg-text) !important;
-  border: 1px solid var(--cg-stroke) !important;
-  border-radius: 16px !important;
-  box-shadow: var(--cg-pop-shadow) !important;
-}
-html.${CLASS_NAME} [data-element-id="model-select-button"],
-html.${CLASS_NAME} [data-element-id="agent-select-button"] {
-  border-radius: 11px !important;
-}
-html.${CLASS_NAME} button:focus-visible,
-html.${CLASS_NAME} a:focus-visible,
-html.${CLASS_NAME} [role="button"]:focus-visible,
-html.${CLASS_NAME} [role="menuitem"]:focus-visible {
+/* Visible keyboard focus only inside the composer and chat actions. */
+html.${CLASS_NAME} [data-element-id="chat-space-end-part"] button:focus-visible,
+html.${CLASS_NAME} [data-element-id="response-block"] button:focus-visible {
   outline: 2px solid var(--cg-link) !important;
   outline-offset: 2px;
 }
@@ -620,7 +493,7 @@ html.${CLASS_NAME} [role="menuitem"]:focus-visible {
     padding-bottom: 14px !important;
   }
   html.${CLASS_NAME} [data-element-id="ai-response"] { font-size: 15.5px; line-height: 1.7; }
-  html.${CLASS_NAME} [data-element-id="user-message"] {
+  html.${CLASS_NAME} [data-element-id="response-block"] [data-element-id="user-message"] {
     max-width: 88% !important;
     padding: 10px 14px !important;
     font-size: 15px !important;
@@ -634,10 +507,9 @@ html.${CLASS_NAME} [role="menuitem"]:focus-visible {
     border-radius: 23px !important;
     margin-bottom: 5px !important;
   }
-  html.${CLASS_NAME} [data-element-id="chat-input-textbox"] { font-size: 16px !important; }
+  html.${CLASS_NAME} [data-element-id="chat-space-end-part"] [data-element-id="chat-input-textbox"] { font-size: 16px !important; }
 }
 @media (prefers-reduced-motion: reduce) {
-  html.${CLASS_NAME} [data-element-id="nav-sidebar-container"] button,
   html.${CLASS_NAME} [data-element-id="chat-space-end-part"] > div:has([data-element-id="message-input"]) {
     transition: none !important;
   }
