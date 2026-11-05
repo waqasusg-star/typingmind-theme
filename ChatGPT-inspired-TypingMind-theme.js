@@ -1,6 +1,6 @@
 /*!
  * ChatGPT-inspired UI for TypingMind
- * Version: 1.2.0 | 2026-11-06
+ * Version: 1.3.0 | 2026-11-06
  *
  * Independent visual theme. Not affiliated with or endorsed by OpenAI or TypingMind.
  * Changes appearance only: does not read chats, API keys, prompts, or account data;
@@ -15,7 +15,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.2.0';
+  const VERSION = '1.3.0';
   const CLASS_NAME = 'tm-chatgpt-ui';
   const STYLE_ID = 'tm-chatgpt-ui-styles';
   const API_NAME = 'TypingMindChatGPTTheme';
@@ -197,8 +197,7 @@ html.${CLASS_NAME} [data-element-id="selected-chat-item"] * {
    =========================================================== */
 html.${CLASS_NAME} [data-element-id="response-block"] {
   box-sizing: border-box;
-  /* Use the available chat column; don't trap responses in a 688px lane
-     when the complete app is already visually scaled to 80%. */
+  /* Allow messages to use the available chat area without forced zoom. */
   max-width: none !important;
   width: calc(100% - 64px) !important;
   margin-left: auto !important;
@@ -596,42 +595,11 @@ html.${CLASS_NAME} [role="menuitem"]:focus-visible {
 }
 
 /* ===========================================================
-   09 — Desktop visual zoom: 80% WITHOUT shrinking the app canvas
+   09 — Native 100% layout (no theme-based zoom)
    =========================================================== */
-/* IMPORTANT: zooming only <html> leaves ~20% unused space at the right and
-   bottom in Chromium desktop/PWA. Compensate the visual reduction in both
-   dimensions; let the app's flex layout use the enlarged logical viewport.
-   CSS zoom is not Chrome's native per-site zoom. */
-@media (min-width: 768px) {
-  html.${CLASS_NAME} {
-    zoom: 80%;
-    width: 125vw !important;  /* 125% × 80% = 100% of physical window */
-    height: 125vh !important;
-    min-height: 125vh !important;
-  }
-  html.${CLASS_NAME} body {
-    box-sizing: border-box;
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 100% !important;
-  }
-  /* Select only the actual application mount, not modal/tooltip portals. */
-  html.${CLASS_NAME} body > :is(div, main):has([data-element-id="chat-space-background"]) {
-    box-sizing: border-box;
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 100% !important;
-  }
-  /* TypingMind uses viewport-height utility layouts on some releases.
-     Compensate those outer shells as well; do NOT modify message scrollers. */
-  html.${CLASS_NAME} :is(.h-screen, .min-h-screen):has([data-element-id="chat-space-background"]) {
-    height: 125vh !important;
-    min-height: 125vh !important;
-  }
-  html.${CLASS_NAME} :is([data-element-id="main-content-area"], [data-element-id="chat-space-middle-part"]) {
-    min-width: 0;
-  }
-}
+/* Deliberately do not override CSS zoom, transform scale, html/body
+   width/height, or viewport units. Chromium and TypingMind keep their
+   normal viewport sizing and app-owned scroll behavior. */
 
 /* ===========================================================
    10 — Responsive and accessibility settings
