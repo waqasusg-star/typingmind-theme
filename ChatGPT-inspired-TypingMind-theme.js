@@ -1,6 +1,6 @@
 /*!
  * TypingMind — ChatGPT-inspired conversation theme
- * 2.0.0 · 6 November 2026 · Independent project
+ * 2.0.1 · 6 November 2026 · Independent project
  * A fresh implementation for TypingMind's native block/absolute-avatar layout.
  * Appearance only. No chat/storage access, network calls, DOM reparenting,
  * scroll interception, application navigation styling, or browser zoom changes.
@@ -8,7 +8,7 @@
  */
 (() => {
   'use strict';
-  const version = '2.0.0';
+  const version = '2.0.1';
   const apiName = 'TypingMindChatGPTTheme';
   const flag = 'tm-cg-v2';
   const styleId = 'tm-cg-v2-style';
@@ -104,6 +104,11 @@
   [data-element-id="response-block"]:has([data-element-id="user-message"]) > div[class~="w-full"] > div {
     align-items: flex-end !important;
     min-width: 0 !important;
+  }
+  /* Native attachments have their own full-width flex column before the bubble.
+     Align the cards inside it, including turns with attachments and no text. */
+  [data-element-id="response-block"][data-message-role="user"] > div[class~="w-full"] > div > div[class~="flex-col"][class~="w-full"] {
+    align-items: flex-end !important;
   }
   [data-element-id="response-block"] [data-element-id="user-message"] {
     box-sizing: border-box !important;
