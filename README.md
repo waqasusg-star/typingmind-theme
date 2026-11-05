@@ -13,24 +13,32 @@ control. It does not force your browser to 100%: your chosen zoom stays in place
 
 ## Install or update
 
-Use this **same stable script URL**, including when updating an existing install:
+Use this **verified v1.5.0 script URL**:
 
 ```text
-https://raw.githubusercontent.com/waqasusg-star/typingmind-theme/main/ChatGPT-inspired-TypingMind-theme.js
+https://cdn.jsdelivr.net/gh/waqasusg-star/typingmind-theme@cdbabb605d423f50c36aa67f2251e72f581ec265/ChatGPT-inspired-TypingMind-theme.js
 ```
 
 1. Open TypingMind's **Preferences → Advanced Settings → Extensions**. Some
    interface versions label Preferences as Settings.
 2. Disable or uninstall earlier appearance extensions, including the full-window
    ChatGPT and Kimi themes, to avoid competing styles.
-3. Install the script URL above. If it is already installed, keep just that one
-   entry and restart/reload TypingMind. If cached styling remains, use a hard
-   refresh (`Ctrl+Shift+R` on Windows).
+3. Replace any failed raw GitHub URL with the script URL above and click
+   **Install**, then **Restart Now**. Keep just one appearance extension.
+   If cached styling remains, use a hard refresh (`Ctrl+Shift+R` on Windows).
 4. Your sidebar, navigation, settings and browser zoom should look the same as
    before. The conversation and composer use the new appearance.
 
-Extensions run when TypingMind starts; updating GitHub does not modify an already
-open page. See [TypingMind's official extension instructions](https://docs.typingmind.com/typingmind-extensions).
+This link is pinned to the exact tested v1.5.0 commit. It returns
+`application/javascript` with cross-origin access enabled. The raw GitHub link
+returns `text/plain` with `nosniff`, which is unsuitable for TypingMind's script
+loader. The CDN's `@main` link can cache an older full-interface theme; use the
+pinned link above to get the chat-only release.
+
+Installing this exact link and loading v1.5.0 after **Restart Now** were verified
+in the current public TypingMind interface. Extensions run when TypingMind
+starts. This pinned install stays on v1.5.0; a future release needs its new
+version-specific URL. See [TypingMind's official extension instructions](https://docs.typingmind.com/typingmind-extensions).
 
 ## Controls
 
