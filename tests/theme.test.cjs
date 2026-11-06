@@ -19,34 +19,33 @@ async function iconSizes(p){return p.evaluate(()=>[...document.querySelectorAll(
 for(const width of [390,768,1440])for(const dark of [false,true])test(`default layout and icons preserved: ${width}px ${dark?'dark':'light'}`,async()=>{
  const p=await pageFor(width,dark),original=await layout(p),icons=await iconSizes(p);
  const originalDom=await p.locator('[data-element-id="chat-space-background"]').first().innerHTML();
+ const originalType=await p.evaluate(()=>Object.fromEntries(['user','answer','input'].map(id=>{const s=getComputedStyle(document.getElementById(id));return[id,{size:s.fontSize,weight:s.fontWeight,lineHeight:s.lineHeight}]})));
+ const originalBold=await p.locator('#answer strong').first().evaluate(e=>getComputedStyle(e).fontWeight);
  await p.addScriptTag({content:source});
  assert.deepEqual(await layout(p),original,'a native layout, direction, surface or control property changed');
  assert.deepEqual(await iconSizes(p),icons,'a native icon was hidden or resized');
  assert.equal(await p.locator('[data-element-id="chat-space-background"]').first().innerHTML(),originalDom,'chat markup changed');
- const sizes=await p.evaluate(()=>Object.fromEntries(['user','answer','input'].map(id=>[id,getComputedStyle(document.getElementById(id)).fontSize])));
- assert.deepEqual(sizes,{user:'16px',answer:'16px',input:'16px'});
- assert.equal(await p.locator('#answer strong').first().evaluate(e=>getComputedStyle(e).fontWeight),'600');
+ const type=await p.evaluate(()=>Object.fromEntries(['user','answer','input'].map(id=>{const s=getComputedStyle(document.getElementById(id));return[id,{size:s.fontSize,weight:s.fontWeight,lineHeight:s.lineHeight}]})));
+ assert.deepEqual(type,originalType,'native font size, boldness or line height changed');
+ assert.equal(await p.locator('#answer strong').first().evaluate(e=>getComputedStyle(e).fontWeight),originalBold);
+ assert.ok((await p.locator('#user').evaluate(e=>getComputedStyle(e).fontFamily)).includes('Arial'));
  assert.equal(await p.locator('#lane').evaluate(e=>getComputedStyle(e).maxWidth),'750px');
  await p.evaluate(()=>window.TypingMindChatGPTTheme.disable());assert.deepEqual(await layout(p),original);await p.close();
 });
 
-test('every non-table CSS declaration is font family, size or weight only',async()=>{
+test('the entire stylesheet contains only a font-family declaration',async()=>{
  const p=await pageFor();await p.addScriptTag({content:source});
- const rules=await p.evaluate(()=>{const result=[];const walk=rs=>{for(const r of rs){if(r.style)result.push({selector:r.selectorText,props:[...r.style]});if(r.cssRules)walk(r.cssRules);}};walk(document.getElementById('tm-cg-type-style').sheet.cssRules);return result;});
- assert.ok(rules.length>5,'stylesheet failed to parse');
- const fonts=new Set(['font-family','font-size','font-weight']);
- const table=prop=>fonts.has(prop)||['--cg-table-line','--cg-table-head','background-color','color'].includes(prop)||/^(border($|-)|padding($|-)|-webkit-border-(horizontal|vertical)-spacing$)/.test(prop);
- for(const rule of rules)for(const prop of rule.props)assert.ok((rule.selector.includes('table')?table(prop):fonts.has(prop)),`${prop} is outside the requested scope: ${rule.selector}`);
+ const rules=await p.evaluate(()=>{const result=[];const walk=rs=>{for(const r of rs){if(r.style)result.push({selector:r.selectorText,props:[...r.style]});if(r.cssRules)walk(r.cssRules);}};walk(document.getElementById('tm-cg-font-only-style').sheet.cssRules);return result;});
+ assert.equal(rules.length,1,'unexpected additional styling rule');
+ for(const rule of rules)assert.deepEqual(rule.props,['font-family'],'a property other than font-family is present');
  await p.close();
 });
 
-test('tables follow light/dark colors and keep native column direction/alignment',async()=>{
+test('native table design, sizes, weights and column alignment are unchanged',async()=>{
  for(const dark of [false,true]){const p=await pageFor(1440,dark);
  await p.locator('table td').first().evaluate(e=>e.style.textAlign='right');
- const before=await p.locator('table td').first().evaluate(e=>({align:getComputedStyle(e).textAlign,direction:getComputedStyle(e).direction}));
- await p.addScriptTag({content:source});
- const result=await p.locator('table').evaluate(e=>{const s=getComputedStyle(e),th=getComputedStyle(e.querySelector('th')),td=getComputedStyle(e.querySelector('td'));return{size:s.fontSize,headerWeight:th.fontWeight,header:th.backgroundColor,rule:td.borderBottomColor,padding:td.padding,align:td.textAlign,direction:td.direction};});
- assert.deepEqual(result,{size:'15px',headerWeight:'600',header:dark?'rgb(48, 48, 48)':'rgb(247, 247, 247)',rule:dark?'rgb(69, 69, 69)':'rgb(222, 222, 222)',padding:'10px 12px',...before});await p.close();}
+ const read=()=>p.locator('table').evaluate(e=>[e,e.querySelector('th'),e.querySelector('td')].map(el=>{const s=getComputedStyle(el);return{size:s.fontSize,weight:s.fontWeight,bg:s.backgroundColor,color:s.color,border:s.border,bottom:s.borderBottom,padding:s.padding,align:s.textAlign,direction:s.direction,spacing:s.borderSpacing,collapse:s.borderCollapse};}));
+ const before=await read();await p.addScriptTag({content:source});assert.deepEqual(await read(),before);await p.close();}
 });
 
 test('drafts, buttons, activity controls and code colors keep working',async()=>{
@@ -67,9 +66,9 @@ test('native nested dialogs and menus receive no typography overrides',async()=>
 });
 
 test('duplicate loading, version replacement, cleanup and keyboard guards',async()=>{
- const p=await pageFor();await p.addScriptTag({content:source});await p.evaluate(()=>window.retired=window.TypingMindChatGPTTheme);await p.addScriptTag({content:source});assert.equal(await p.locator('#tm-cg-type-style').count(),1);
+ const p=await pageFor();await p.addScriptTag({content:source});await p.evaluate(()=>window.retired=window.TypingMindChatGPTTheme);await p.addScriptTag({content:source});assert.equal(await p.locator('#tm-cg-font-only-style').count(),1);
  await p.evaluate(()=>{const b={ctrlKey:true,altKey:true,code:'KeyG',cancelable:true};for(const extra of [{repeat:true},{shiftKey:true},{isComposing:true}])document.dispatchEvent(new KeyboardEvent('keydown',{...b,...extra}));const e=new KeyboardEvent('keydown',b);e.preventDefault();document.dispatchEvent(e);});assert.equal(await p.evaluate(()=>window.TypingMindChatGPTTheme.isEnabled()),true);
  await p.keyboard.press('Control+Alt+g');assert.equal(await p.evaluate(()=>window.TypingMindChatGPTTheme.isEnabled()),false);
  await p.addScriptTag({content:source.replace(/const version = '[^']+'/,'const version = "99.0.0"')});assert.deepEqual(await p.evaluate(()=>{window.retired.destroy();window.retired.disable();return{version:window.TypingMindChatGPTTheme.version,enabled:window.TypingMindChatGPTTheme.isEnabled()};}),{version:'99.0.0',enabled:true});
- await p.evaluate(()=>window.TypingMindChatGPTTheme.destroy());assert.equal(await p.locator('#tm-cg-type-style').count(),0);await p.close();
+ await p.evaluate(()=>window.TypingMindChatGPTTheme.destroy());assert.equal(await p.locator('#tm-cg-font-only-style').count(),0);await p.close();
 });
