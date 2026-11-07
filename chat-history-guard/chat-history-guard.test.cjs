@@ -105,11 +105,11 @@ test('unrelated requests are passed through exactly, including opaque bodies', a
   const wrapped = G.guardedFetch(async (a, b) => { calls++; assert.equal(a, input); assert.equal(b, init); return response; }, () => {});
   assert.equal(await wrapped(input, init), response); assert.equal(calls, 1);
 });
-test('valid direct request and streamed provider response are untouched', async () => {
+test('valid direct request and non-comment stream data are unchanged', async () => {
   const init = post([user('read'), assistant(call()), result()]); const response = new Response('event stream', { headers: { 'Content-Type': 'text/event-stream' } });
   const states = []; let calls = 0;
   const wrapped = G.guardedFetch(async (a, b) => { calls++; assert.equal(a, target); assert.equal(b, init); return response; }, s => states.push(s));
-  assert.equal(await wrapped(target, init), response); assert.equal(calls, 1); assert.equal(states[0].kind, 'validated');
+  assert.equal(await (await wrapped(target, init)).text(), 'event stream'); assert.equal(calls, 1); assert.equal(states[0].kind, 'validated');
 });
 test('recovery preserves auth, URL, model, stream flag, options and original body', async () => {
   const init = { ...post([result('lost', 'old source'), user('status')]), credentials: 'omit' };
@@ -188,4 +188,31 @@ test('1000 generated old tool failures normalize once, retain data, and validate
     assert.equal(G.repairHistory(checked.messages).repairedBlocks, 0);
     assert.equal(JSON.stringify(input), snapshot);
   }
+});
+
+test('SSE comments split across every UTF8 byte are removed without changing data', async () => {
+  const input = ': keep-alive\r\n\r\nid: 7\r\ndata: {"text":"✅ مرحبا : keep-alive"}\r\n\r\n:other\ndata: [DONE]\n\n:final';
+  const bytes = new TextEncoder().encode(input);
+  const stream = new ReadableStream({start(c){for(const b of bytes)c.enqueue(Uint8Array.of(b));c.close();}});
+  const r = G.filterSSEComments(new Response(stream,{headers:{'content-type':'text/event-stream; charset=utf-8','x-request-id':'preserved','content-length':'999'}}));
+  assert.equal(await r.text(),'\r\nid: 7\r\ndata: {"text":"✅ مرحبا : keep-alive"}\r\n\r\ndata: [DONE]\n\n');
+  assert.equal(r.headers.get('x-request-id'),'preserved');assert.equal(r.headers.get('content-length'),null);
+});
+test('non-SSE response is returned by identity and provider errors retain status',async()=>{
+ const json=new Response('{"error":"x"}',{status:400,headers:{'content-type':'application/json'}});
+ assert.equal(G.filterSSEComments(json),json);
+ const sse=G.filterSSEComments(new Response(':keep\ndata: {"error":"real"}\n',{status:503,headers:{'content-type':'text/event-stream'}}));
+ assert.equal(sse.status,503);assert.equal(await sse.text(),'data: {"error":"real"}\n');
+});
+test('stream read failures propagate and cancellation reaches upstream',async()=>{
+ const broken=G.filterSSEComments(new Response(new ReadableStream({pull(c){c.error(new Error('read failed'));}}),{headers:{'content-type':'text/event-stream'}}));
+ await assert.rejects(broken.text(),/read failed/);
+ let cancelled=false;const src=new ReadableStream({pull(c){c.enqueue(new TextEncoder().encode('data: x\n'));},cancel(){cancelled=true;}});
+ const r=G.filterSSEComments(new Response(src,{headers:{'content-type':'text/event-stream'}}));
+ const reader=r.body.getReader();await reader.read();await reader.cancel();await new Promise(resolve=>setImmediate(resolve));assert.equal(cancelled,true);
+});
+test('target request wrapper filters SSE but sends only one unchanged provider request',async()=>{
+ let n=0;const body=post([user('hi')]);
+ const wrapped=G.guardedFetch(async(input,init)=>{n++;assert.equal(input,target);assert.equal(init,body);return new Response(': keep-alive\n\ndata: {"ok":true}\n\n',{headers:{'content-type':'text/event-stream'}});},()=>{});
+ const r=await wrapped(target,body);assert.equal(await r.text(),'\ndata: {"ok":true}\n\n');assert.equal(n,1);
 });
