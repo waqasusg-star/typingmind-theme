@@ -1,4 +1,4 @@
-/* Chat History Guard 1.0.0 — reviewed local request preflight for direct DeepSeek.
+/* Chat History Guard 1.0.1 — reviewed local request preflight for direct DeepSeek.
  * No app storage access, external telemetry, credentials collection, or tool replay.
  * Install only after reviewing README.md and approving TypingMind extension access.
  */
@@ -9,7 +9,7 @@
   else if (typeof window !== 'undefined') api.install(window);
 })(function () {
   'use strict';
-  const VERSION = '1.0.0';
+  const VERSION = '1.0.1';
   const MAX_BYTES = 32 * 1024 * 1024;
   const PREFIX = '[UNVERIFIED HISTORICAL TOOL TRANSCRIPT]';
 
@@ -64,6 +64,7 @@
         while (end < messages.length && messages[end].role === 'tool') end++;
         const calls = m.tool_calls;
         let valid = Array.isArray(calls) && calls.length > 0;
+        let issue = 'invalid call list';
         const expected = new Set();
         if (valid) {
           for (const call of calls) {
@@ -71,6 +72,7 @@
                 expected.has(call.id) || !call.function || typeof call.function.name !== 'string' ||
                 !call.function.name || typeof call.function.arguments !== 'string') {
               valid = false;
+              issue = 'invalid or duplicate call structure';
               break;
             }
             expected.add(call.id);
@@ -83,15 +85,16 @@
             if (!expected.has(result.tool_call_id) || seen.has(result.tool_call_id) ||
                 !(typeof result.content === 'string' || Array.isArray(result.content))) {
               valid = false;
+              issue = 'unmatched/duplicate result or missing content';
               break;
             }
             seen.add(result.tool_call_id);
           }
-          if (seen.size !== expected.size) valid = false;
+          if (seen.size !== expected.size) { valid = false; issue = 'missing tool outcome'; }
         }
         if (valid) { for (let j = i; j < end; j++) out.push(messages[j]); }
         else {
-          if (end > lastUser) return block('incomplete or invalid tool group in the current turn', i);
+          if (end > lastUser) return block('incomplete or invalid tool group in the current turn: ' + issue, i);
           out.push(archive(messages.slice(i, end)));
           repairedBlocks++;
         }
@@ -110,6 +113,35 @@
       return url.protocol === 'https:' && url.hostname === 'api.deepseek.com' &&
         (url.pathname === '/chat/completions' || url.pathname === '/v1/chat/completions');
     } catch (_) { return false; }
+  }
+
+  // SSE comments are transport keep-alives, not JSON events. Drop comment
+  // lines only; retain every data/event/id/retry line, delimiter and Unicode byte.
+  function filterSSEComments(response) {
+    if (!response || !response.body ||
+        !/^text\/event-stream(?:\s*;|$)/i.test(response.headers.get('content-type') || '')) return response;
+    const decoder = new TextDecoder();
+    const encoder = new TextEncoder();
+    let pending = '';
+    const stream = response.body.pipeThrough(new TransformStream({
+      transform(chunk, controller) {
+        pending += decoder.decode(chunk, { stream: true });
+        let end;
+        while ((end = pending.indexOf('\n')) >= 0) {
+          const line = pending.slice(0, end + 1);
+          pending = pending.slice(end + 1);
+          if (!line.startsWith(':')) controller.enqueue(encoder.encode(line));
+        }
+      },
+      flush(controller) {
+        pending += decoder.decode();
+        if (pending && !pending.startsWith(':')) controller.enqueue(encoder.encode(pending));
+      }
+    }));
+    const headers = new Headers(response.headers);
+    headers.delete('content-length');
+    headers.delete('content-encoding');
+    return new Response(stream, { status: response.status, statusText: response.statusText, headers });
   }
 
   function guardedFetch(originalFetch, onState) {
@@ -139,7 +171,7 @@
       if (!checked.ok) return rejected(checked.reason);
       if (!checked.repairedBlocks && JSON.stringify(checked.messages) === JSON.stringify(payload.messages)) {
         report('validated', { repairedBlocks: 0 });
-        return originalFetch(input, init);
+        return filterSSEComments(await originalFetch(input, init));
       }
       const body = JSON.stringify({ ...payload, messages: checked.messages });
       if (new TextEncoder().encode(body).length > MAX_BYTES) return rejected('Recovered request exceeds the 32 MiB validation limit');
@@ -148,7 +180,7 @@
       report(checked.repairedBlocks ? 'recovered' : 'validated', { repairedBlocks: checked.repairedBlocks });
       // Same endpoint, headers, model, stream settings, signal and request options.
       // Exactly one provider request; never retries, executes tools or starts builds.
-      return originalFetch(new Request(request, { body, headers }));
+      return filterSSEComments(await originalFetch(new Request(request, { body, headers })));
     };
   }
 
@@ -161,7 +193,7 @@
     function render(state) {
       if (state) pending = state.kind === 'recovered'
         ? 'Chat Guard: recovered ' + state.repairedBlocks + ' historical group(s); originals kept'
-        : state.kind === 'blocked' ? 'Chat Guard: blocked unsafe current history; check pending build'
+        : state.kind === 'blocked' ? 'Chat Guard: blocked — ' + state.reason
         : 'Chat Guard: direct DeepSeek request validated';
       if (!win.document.body) return;
       if (!badge) {
@@ -183,5 +215,5 @@
     render();
     if (!win.document.body) win.document.addEventListener('DOMContentLoaded', function () { render(); }, { once: true });
   }
-  return { VERSION, PREFIX, repairHistory, isTarget, guardedFetch, install };
+  return { VERSION, PREFIX, repairHistory, isTarget, filterSSEComments, guardedFetch, install };
 });
