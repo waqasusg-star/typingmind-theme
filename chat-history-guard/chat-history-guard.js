@@ -1,4 +1,4 @@
-/* Chat History Guard 1.0.1 — reviewed local request preflight for direct DeepSeek.
+/* Chat History Guard 1.0.2 — reviewed local request preflight for direct DeepSeek.
  * No app storage access, external telemetry, credentials collection, or tool replay.
  * Install only after reviewing README.md and approving TypingMind extension access.
  */
@@ -9,7 +9,7 @@
   else if (typeof window !== 'undefined') api.install(window);
 })(function () {
   'use strict';
-  const VERSION = '1.0.1';
+  const VERSION = '1.0.2';
   const MAX_BYTES = 32 * 1024 * 1024;
   const PREFIX = '[UNVERIFIED HISTORICAL TOOL TRANSCRIPT]';
 
@@ -186,7 +186,7 @@
 
   function install(win) {
     if (!win.document || typeof win.fetch !== 'function') return;
-    const marker = Symbol.for('waqas.chat-history-guard.v1');
+    const marker = Symbol.for('waqas.chat-history-guard.v1.0.2');
     if (win[marker]) return;
     let badge;
     let pending = 'Chat Guard: loaded; transport not verified';
