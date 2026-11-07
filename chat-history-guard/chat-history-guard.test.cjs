@@ -216,3 +216,9 @@ test('target request wrapper filters SSE but sends only one unchanged provider r
  const wrapped=G.guardedFetch(async(input,init)=>{n++;assert.equal(input,target);assert.equal(init,body);return new Response(': keep-alive\n\ndata: {"ok":true}\n\n',{headers:{'content-type':'text/event-stream'}});},()=>{});
  const r=await wrapped(target,body);assert.equal(await r.text(),'\ndata: {"ok":true}\n\n');assert.equal(n,1);
 });
+test('upgrade can wrap an already loaded legacy guard without tool or network replay',async()=>{
+ let requests=0;const elements=[];const doc={body:{appendChild:x=>elements.push(x)},createElement:()=>({setAttribute(){},style:{}})};
+ const win={document:doc,fetch:G.guardedFetch(async()=>{requests++;return new Response(': keep-alive\ndata: [DONE]\n',{headers:{'content-type':'text/event-stream'}});},()=>{})};
+ Object.defineProperty(win,Symbol.for('waqas.chat-history-guard.v1'),{value:true});G.install(win);G.install(win);
+ assert.equal(elements.length,1);assert.equal(await(await win.fetch(target,post([user('hi')]))).text(),'data: [DONE]\n');assert.equal(requests,1);
+});
